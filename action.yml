@@ -1,6 +1,6 @@
-name: 'Your name here'
-description: 'Provide a description here'
-author: 'Your name or organization here'
+name: 'actions-dco'
+description: 'Check pull requests for DCO sign-off'
+author: 'KineticCafe'
 inputs:
   milliseconds: # change this
     required: true
