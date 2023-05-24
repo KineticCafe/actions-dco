@@ -1,0 +1,16 @@
+name: DCO Check
+
+on:
+  pull_request:
+
+jobs:
+  local:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./
+
+  # remote:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: KineticCafe/actions-dco@v1.0

@@ -1,0 +1,12 @@
+node_modules
+logs
+*.log*
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+.npm
+.eslintcache
+.node_repl_history
+*.tgz
+.DS_Store
+Thumbs.db
+__tests__/runner/*
+lib/**/*
