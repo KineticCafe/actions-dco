@@ -1,4 +1,8 @@
-lockfileVersion: '6.0'
+lockfileVersion: '6.1'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
 
 dependencies:
   '@actions/core':
@@ -16,8 +20,8 @@ devDependencies:
     specifier: ^29.5.0
     version: 29.5.0
   '@octokit/types':
-    specifier: ^9.3.1
-    version: 9.3.1
+    specifier: ^10.0.0
+    version: 10.0.0
   '@types/node':
     specifier: ^20.3.1
     version: 20.3.1
@@ -857,17 +861,17 @@ packages:
       - encoding
     dev: false
 
+  /@octokit/types@10.0.0:
+    resolution: {integrity: sha512-Vm8IddVmhCgU1fxC1eyinpwqzXPEYu0NrYzD3YZjlGjyftdLBTeqNblRC0jmJmgxbJIsQlyogVeGnrNaaMVzIg==}
+    dependencies:
+      '@octokit/openapi-types': 18.0.0
+    dev: true
+
   /@octokit/types@6.41.0:
     resolution: {integrity: sha512-eJ2jbzjdijiL3B4PrSQaSjuF2sPEQPVCPzBvTHJD9Nz+9dw2SGH4K4xeQJ77YfTq5bRQ+bD8wT11JbeDPmxmGg==}
     dependencies:
       '@octokit/openapi-types': 12.11.0
     dev: false
-
-  /@octokit/types@9.3.1:
-    resolution: {integrity: sha512-zfJzyXLHC42sWcn2kS+oZ/DRvFZBYCCbfInZtwp1Uopl1qh6pRg4NSP/wFX1xCOpXvEkctiG1sxlSlkZmzvxdw==}
-    dependencies:
-      '@octokit/openapi-types': 18.0.0
-    dev: true
 
   /@sinclair/typebox@0.25.24:
     resolution: {integrity: sha512-XJfwUVUKDHF5ugKwIcxEgc9k8b7HbznCp6eUfWgu710hMPNIO4aw4/zB5RogDQz8nd6gyCDpU9O/m6qYEWY6yQ==}
