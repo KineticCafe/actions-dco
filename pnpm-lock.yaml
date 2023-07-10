@@ -20,8 +20,8 @@ devDependencies:
     specifier: ^29.5.0
     version: 29.5.0
   '@octokit/types':
-    specifier: ^10.0.0
-    version: 10.0.0
+    specifier: ^11.0.0
+    version: 11.0.0
   '@types/node':
     specifier: ^20.3.3
     version: 20.3.3
@@ -929,8 +929,8 @@ packages:
       - encoding
     dev: false
 
-  /@octokit/types@10.0.0:
-    resolution: {integrity: sha512-Vm8IddVmhCgU1fxC1eyinpwqzXPEYu0NrYzD3YZjlGjyftdLBTeqNblRC0jmJmgxbJIsQlyogVeGnrNaaMVzIg==}
+  /@octokit/types@11.0.0:
+    resolution: {integrity: sha512-h4iyfMpQUdub1itwTn6y7z2a3EtPuer1paKfsIbZErv0LBbZYGq6haiPUPJys/LetPqgcX3ft33O16XuS03Anw==}
     dependencies:
       '@octokit/openapi-types': 18.0.0
     dev: true
