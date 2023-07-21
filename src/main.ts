@@ -41,13 +41,9 @@ import * as validator from 'email-validator'
 
 import type { Endpoints } from '@octokit/types'
 
-type ArrayElement<ArrayType extends readonly unknown[]> =
-  ArrayType extends readonly (infer ElementType)[] ? ElementType : never
-
 type ResponseType = Endpoints['GET /repos/{owner}/{repo}/compare/{basehead}']['response']
 type CommitCompare = ResponseType['data']
 type Commits = CommitCompare['commits']
-type Commit = ArrayElement<Commits>
 
 type Committer = {
   email: string
@@ -62,7 +58,15 @@ type DCOFailed = {
   message: string
 }
 
-const formatSignoff = ({ email, name }: Committer) => `"${name} <${email}>"`
+const formatSignoffHtml = (committer: Partial<Committer>): string =>
+  formatSignoff(committer)
+    .replace('<', '&lt;')
+    .replace('>', '&gt;')
+    .replace(/^"/, '')
+    .replace(/"$/, '')
+
+const formatSignoff = ({ email, name }: Partial<Committer>): string =>
+  `"${name ?? 'MISSING NAME'} <${email}>"`
 
 const getDCOStatus = (commits: Commits, url: string): DCOFailed[] => {
   const failed = []
@@ -87,7 +91,7 @@ const getDCOStatus = (commits: Commits, url: string): DCOFailed[] => {
     const signoffs = getSignoffs(commit)
 
     if (signoffs.length === 0) {
-      info.message = 'A DCO sign-off is missing'
+      info.message = 'No Signed-off-by trailer found.'
       failed.push(info)
       continue
     }
@@ -119,16 +123,17 @@ const getDCOStatus = (commits: Commits, url: string): DCOFailed[] => {
 
     const expected =
       commitAuthor.name === commitCommitter.name &&
-      commitAuthor.email == commitCommitter.email
+      commitAuthor.email === commitCommitter.email
         ? formatSignoff(commitAuthor)
         : `${formatSignoff(commitAuthor)} or ${formatSignoff(commitCommitter)}`
 
-    const authors = [commitAuthor.name.toLowerCase(), commitCommitter.name.toLowerCase]
-    const emails = [commitAuthor.email.toLowerCase(), commitCommitter.email.toLowerCase]
+    const authors = [commitAuthor.name.toLowerCase(), commitCommitter.name.toLowerCase()]
+    const emails = [commitAuthor.email.toLowerCase(), commitCommitter.email.toLowerCase()]
 
     const valid = signoffs.filter(
-      ({ name, email }) =>
-        authors.includes(name.toLowerCase()) && emails.includes(email.toLowerCase())
+      ({ name: signoffName, email: signoffEmail }) =>
+        authors.includes(signoffName.toLowerCase()) &&
+        emails.includes(signoffEmail.toLowerCase()),
     )
 
     if (valid.length === 0) {
@@ -148,7 +153,7 @@ const getDCOStatus = (commits: Commits, url: string): DCOFailed[] => {
 
 const signoffRE = /^Signed-off-by: (.*) <(.*)>$/gim
 
-const getSignoffs = ({ message }: { message: string }) => {
+const getSignoffs = ({ message }: { message: string }): Committer[] => {
   const matches = []
   let match
 
@@ -159,17 +164,20 @@ const getSignoffs = ({ message }: { message: string }) => {
   return matches
 }
 
-type PR = typeof github.context.payload.pull_request
+const failedSha = (details: DCOFailed | DCOFailed[]): string => {
+  if (Array.isArray(details)) {
+    return `${failedSha(details[0])}..${failedSha(details[details.length - 1])}`
+  }
 
-const handleOneCommit = (pr: NonNullable<PR>) =>
-  `You only have one commit incorrectly signed off! To fix, first ensure you have a local copy of your branch by [checking out the pull request locally via command line](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/checking-out-pull-requests-locally). Next, head to your local branch and run: \n\`\`\`bash\ngit commit --amend --no-edit --signoff\n\`\`\`\nNow your commits will have your sign off. Next run \n\`\`\`bash\ngit push --force-with-lease origin ${pr.head.ref}\n\`\`\``
+  return details.sha.slice(0, 7)
+}
 
-const handleMultipleCommits = (
-  pr: NonNullable<PR>,
-  commitLength: number,
-  dcoFailed: DCOFailed[]
-) =>
-  `You have ${dcoFailed.length} commits incorrectly signed off. To fix, first ensure you have a local copy of your branch by [checking out the pull request locally via command line](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/checking-out-pull-requests-locally). Next, head to your local branch and run: \n\`\`\`bash\ngit rebase HEAD~${commitLength} --signoff\n\`\`\`\n Now your commits will have your sign off. Next run \n\`\`\`bash\ngit push --force-with-lease origin ${pr.head.ref}\n\`\`\``
+const buildMessage = (commitLength: number, dcoFailed: DCOFailed[]): string =>
+  commitLength === 1 || dcoFailed.length === 1
+    ? `Commit ${failedSha(dcoFailed[0])} is incorrectly signed off.`
+    : dcoFailed.length === commitLength
+    ? `All commits (${failedSha(dcoFailed)}) are incorrectly signed off.`
+    : `${dcoFailed.length} commits in ${failedSha(dcoFailed)} are incorrectly signed off.`
 
 async function run(): Promise<void> {
   const repoToken = core.getInput('repo-token')
@@ -177,7 +185,7 @@ async function run(): Promise<void> {
 
   if (!github.context.payload.pull_request) {
     throw new Error(
-      'This can only be run in a pull_request or pull_request_target context.'
+      'This can only be run in a pull_request or pull_request_target context.',
     )
   }
 
@@ -194,39 +202,43 @@ async function run(): Promise<void> {
     throw new Error(`cannot get commits ${base}...${head} - not found.`)
   }
 
-  if (result.status != 200) {
+  if (result.status !== 200) {
     throw new Error(`cannot get commits ${base}...${head} - ${result.status}.`)
   }
 
   const commits = result.data.commits
   const dcoFailed = getDCOStatus(
     commits,
-    github.context.payload.pull_request.html_url ?? ''
+    github.context.payload.pull_request.html_url ?? '',
   )
 
   if (dcoFailed.length > 0) {
-    const summary = dcoFailed
-      .map(
-        (commit) =>
-          `Commit sha: [${commit.sha.slice(0, 7)}](${commit.url}), Author: ${
-            commit.author
-          }, Committer: ${commit.committer}; ${commit.message}`
-      )
-      .join('\n')
+    await core.summary
+      .addHeading('Failed DCO Results')
+      .addTable([
+        [
+          { data: 'Commit', header: true },
+          { data: 'Author', header: true },
+          { data: 'Committer', header: true },
+          { data: 'Reason', header: true },
+        ],
+        ...dcoFailed.map(({ author, committer, message, sha, url }) => [
+          `<a href="${url}"><code>${sha.slice(0, 7)}</code></a>`,
+          formatSignoffHtml(author),
+          formatSignoffHtml(committer),
+          message,
+        ]),
+      ])
+      .write()
 
-    const message =
-      dcoFailed.length === 1
-        ? handleOneCommit(github.context.payload.pull_request)
-        : handleMultipleCommits(
-            github.context.payload.pull_request,
-            commits.length,
-            dcoFailed
-          )
-
-    throw new Error(`${message}\n\n${summary}`)
+    throw new Error(buildMessage(commits.length, dcoFailed))
+  } else {
+    await core.summary.addHeading('DCO Passed').write()
   }
 }
 
 run()
+  // eslint-disable-next-line github/no-then
   .then(() => process.exit())
+  // eslint-disable-next-line github/no-then
   .catch((error) => core.setFailed(error.message))
