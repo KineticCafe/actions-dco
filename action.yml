@@ -23,6 +23,16 @@ inputs:
     description: 'The GitHub token'
     required: false
     default: ${{ github.token }}
+  exempt-authors:
+    description: |
+      A whitespace separated list of email exemption patterns indicating an
+      implied DCO sign-off (the contributors work for the company managing the
+      project, for example). Permitted pattern formats are exact emails
+      (`name@example.org`) or domain patterns (`@example.org`). Patterns that do
+      not match this will be printed as warnings and ignored.
+
+      `exempt-authors` are applied only for the commit _author_. The commit
+      _committer_ cannot exempt other peoples' contributions.
 
 runs:
   using: 'node16'
