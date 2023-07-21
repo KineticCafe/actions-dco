@@ -8,7 +8,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
       - uses: ./
+        with:
+          exempt-authors: |
+            @kineticcommerce.com
+            @kineticcafe.com
 
   # remote:
   #   runs-on: ubuntu-latest
