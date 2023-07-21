@@ -38,6 +38,7 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 import * as validator from 'email-validator'
+import escapeHtml from 'escape-html'
 
 import type { Endpoints } from '@octokit/types'
 
@@ -59,14 +60,10 @@ type DCOFailed = {
 }
 
 const formatSignoffHtml = (committer: Partial<Committer>): string =>
-  formatSignoff(committer)
-    .replace('<', '&lt;')
-    .replace('>', '&gt;')
-    .replace(/^"/, '')
-    .replace(/"$/, '')
+  escapeHtml(formatSignoff(committer))
 
 const formatSignoff = ({ email, name }: Partial<Committer>): string =>
-  `"${name ?? 'MISSING NAME'} <${email}>"`
+  `"${name ?? 'MISSING NAME'} <${email ?? 'MISSING EMAIL'}>"`
 
 const getDCOStatus = (commits: Commits, url: string): DCOFailed[] => {
   const failed = []

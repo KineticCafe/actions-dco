@@ -19,6 +19,9 @@ devDependencies:
   '@octokit/types':
     specifier: ^11.1.0
     version: 11.1.0
+  '@types/escape-html':
+    specifier: ^1.0.2
+    version: 1.0.2
   '@types/node':
     specifier: ^20.4.2
     version: 20.4.2
@@ -28,6 +31,9 @@ devDependencies:
   '@vercel/ncc':
     specifier: ^0.36.1
     version: 0.36.1
+  escape-html:
+    specifier: ^1.0.3
+    version: 1.0.3
   eslint:
     specifier: ^8.45.0
     version: 8.45.0
@@ -272,6 +278,10 @@ packages:
       open: 9.1.0
       picocolors: 1.0.0
       tslib: 2.6.0
+    dev: true
+
+  /@types/escape-html@1.0.2:
+    resolution: {integrity: sha512-gaBLT8pdcexFztLSPRtriHeXY/Kn4907uOCZ4Q3lncFBkheAWOuNt53ypsF8szgxbEJ513UeBzcf4utN0EzEwA==}
     dev: true
 
   /@types/json-schema@7.0.12:
@@ -824,6 +834,10 @@ packages:
   /escalade@3.1.1:
     resolution: {integrity: sha512-k0er2gUkLf8O0zKJiAhmkTnJlTvINGv7ygDNPbeIsX/TJjGJZHuh9B2UxbsaEkmlEo9MfhrSzmhIlhRlI2GXnw==}
     engines: {node: '>=6'}
+    dev: true
+
+  /escape-html@1.0.3:
+    resolution: {integrity: sha512-NiSupZ4OeuGwr68lGIeym/ksIZMJodUGOSCZ/FSnTxcrekbvqrgdUxlJOMpijaKZVjAJrWrGs/6Jy8OMuyj9ow==}
     dev: true
 
   /escape-string-regexp@1.0.5:
