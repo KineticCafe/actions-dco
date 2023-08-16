@@ -34,14 +34,14 @@
   "devDependencies": {
     "@octokit/types": "^11.1.0",
     "@types/escape-html": "^1.0.2",
-    "@types/node": "^20.4.8",
-    "@typescript-eslint/parser": "^6.2.0",
+    "@types/node": "^20.5.0",
+    "@typescript-eslint/parser": "^6.4.0",
     "@vercel/ncc": "^0.36.1",
     "escape-html": "^1.0.3",
-    "eslint": "^8.46.0",
+    "eslint": "^8.47.0",
     "eslint-plugin-github": "^4.9.2",
     "js-yaml": "^4.1.0",
-    "prettier": "^3.0.1",
+    "prettier": "^3.0.2",
     "typescript": "^5.1.6"
   },
   "packageManager": "pnpm@8.6.12"
