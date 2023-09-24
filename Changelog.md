@@ -1,5 +1,9 @@
 # KineticCafe/actions-dco Changelog
 
+## 1.2 / 2023-09-25
+
+- Upgraded dependencies and set dependency on Node v20.
+
 ## 1.1 / 2023-07-21
 
 - Improved error messages using action summaries (`summary` in `@actions/core`).
