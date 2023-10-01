@@ -36,7 +36,7 @@
     "@types/escape-html": "^1.0.2",
     "@types/node": "^20.5.7",
     "@typescript-eslint/parser": "^6.5.0",
-    "@vercel/ncc": "^0.36.1",
+    "@vercel/ncc": "^0.38.0",
     "escape-html": "^1.0.3",
     "eslint": "^8.48.0",
     "eslint-plugin-github": "^4.10.0",
