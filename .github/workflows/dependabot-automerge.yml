@@ -12,6 +12,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: KineticCafe/actions/dependabot-automerge@v1.0
+      - uses: KineticCafe/actions/dependabot-automerge@v1.2
         with:
           update-type: minor
