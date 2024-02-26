@@ -5,23 +5,7 @@ updates:
     schedule:
       interval: monthly
 
-    groups:
-      actions:
-        patterns:
-          - '*'
-
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: monthly
-
-    groups:
-      types-and-lint:
-        patterns:
-          - '@octokit/types'
-          - '@types/*'
-          - '@typescript-eslint/*'
-          - 'eslint'
-          - 'eslint-plugin-*'
-          - 'prettier'
-          - 'typescript'

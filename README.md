@@ -55,4 +55,24 @@ jobs:
             @example.com
   ```
 
+## Contributing
+
+@KineticCafe/actions-dco [welcomes contributions][]. This project, like all
+Kinetic Commerce [open source projects][], is under the Kinetic Commerce Open
+Source [Code of Conduct][].
+
+This project is licensed under the Apache License, version 2.0 and requires
+certification via a Developer Certificate of Origin. See [Licence.md][] for
+more details.
+
+## Releasing
+
+Releases are prepared with `@vercel/ncc` to produce a single file which must
+be committed to `dist/`. Run `pnpm package` or `pnpm all` to produce this
+file.
+
+[welcomes contributions]: https://github.com/KineticCafe/actions-dco/blob/main/Contributing.md
+[code of conduct]: https://github.com/KineticCafe/code-of-conduct
+[open source projects]: https://github.com/KineticCafe
+[licence.md]: https://github.com/KineticCafe/actions-dco/blob/main/Licence.md
 [dco]: https://developercertificate.org
