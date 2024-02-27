@@ -1,5 +1,5 @@
 /**
- * Copyright 2023 Kinetic Commerce and contributors.
+ * Copyright 2023–2024 Kinetic Commerce and contributors.
  * Based on work by Copyright 2021 tison <wander4096@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -39,6 +39,8 @@ import * as core from '@actions/core'
 import * as github from '@actions/github'
 import * as validator from 'email-validator'
 import escapeHtml from 'escape-html'
+
+import { name as NAME, version as VERSION } from '../package.json'
 
 import type { Endpoints } from '@octokit/types'
 
@@ -133,7 +135,7 @@ const getDCOStatus = (
     const name = info.author.name ?? info.committer.name
 
     if (!name) {
-      info.message = `Cannot find name for commit author or committer`
+      info.message = 'Cannot find name for commit author or committer'
       result.failed.push(info)
       continue
     }
@@ -175,9 +177,14 @@ const signoffRE = /^Signed-off-by: (.*) <(.*)>$/gim
 
 const getSignoffs = ({ message }: { message: string }): Committer[] => {
   const matches = []
-  let match
 
-  while ((match = signoffRE.exec(message)) !== null) {
+  while (true) {
+    const match = signoffRE.exec(message)
+
+    if (match == null) {
+      break
+    }
+
     matches.push({ name: match[1], email: match[2] })
   }
 
@@ -196,8 +203,10 @@ const buildMessage = (commitLength: number, dcoFailed: DCORecord[]): string =>
   commitLength === 1 || dcoFailed.length === 1
     ? `Commit ${formatSha(dcoFailed[0])} is incorrectly signed off.`
     : dcoFailed.length === commitLength
-    ? `All commits (${formatSha(dcoFailed)}) are incorrectly signed off.`
-    : `${dcoFailed.length} commits in ${formatSha(dcoFailed)} are incorrectly signed off.`
+      ? `All commits (${formatSha(dcoFailed)}) are incorrectly signed off.`
+      : `${dcoFailed.length} commits in ${formatSha(
+          dcoFailed,
+        )} are incorrectly signed off.`
 
 const getAuthorExemptions = (): Exemptions => {
   const exemptions = core
@@ -241,6 +250,8 @@ const getAuthorExemptions = (): Exemptions => {
 }
 
 async function run(): Promise<void> {
+  core.info(`${NAME} ${VERSION}`)
+
   const repoToken = core.getInput('repo-token')
   const client = github.getOctokit(repoToken)
   const authorExemptions = getAuthorExemptions()

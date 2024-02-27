@@ -1,10 +1,11 @@
-name: DCO Check
+name: Check DCO
 
 on:
   pull_request:
 
 jobs:
   local:
+    name: Check DCO
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -14,8 +15,3 @@ jobs:
           exempt-authors: |
             @kineticcommerce.com
             @kineticcafe.com
-
-  # remote:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: KineticCafe/actions-dco@v1.0
