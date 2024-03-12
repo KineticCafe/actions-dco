@@ -13,17 +13,13 @@
     "lint": "biome lint .",
     "lint:fix": "biome lint --apply .",
     "package": "ncc build --source-map --license licenses.txt --minify",
-    "all": "concurrently 'pnpm run build' 'pnpm run check' 'pnpm run package'"
+    "all": "pnpm run build && pnpm run check && pnpm run package"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/KineticCafe/actions-dco.git"
   },
-  "keywords": [
-    "actions",
-    "dco",
-    "signoff"
-  ],
+  "keywords": ["github-actions", "dco", "dco-signoff"],
   "bugs": {
     "url": "https://github.com/KineticCafe/actions-dco/issues"
   },
@@ -35,15 +31,15 @@
     "email-validator": "^2.0.4"
   },
   "devDependencies": {
-    "@biomejs/biome": "^1.5.3",
+    "@biomejs/biome": "^1.6.1",
     "@octokit/types": "^12.6.0",
     "@types/escape-html": "^1.0.4",
-    "@types/node": "^20.11.20",
+    "@types/node": "^20.11.26",
     "@vercel/ncc": "^0.38.1",
     "concurrently": "^8.2.2",
     "escape-html": "^1.0.3",
     "js-yaml": "^4.1.0",
-    "typescript": "^5.3.3"
+    "typescript": "5.3.3"
   },
   "packageManager": "pnpm@8.7.6"
 }
