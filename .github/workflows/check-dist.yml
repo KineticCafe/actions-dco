@@ -1,4 +1,13 @@
-name: Check dist/
+# In TypeScript actions, `dist/` is a special directory. When you reference
+# an action with the `uses:` property, `dist/index.js` is the code that will be
+# run. For this project, the `dist/index.js` file is transpiled from other
+# source files. This workflow ensures the `dist/` directory contains the
+# expected transpiled code.
+#
+# If this workflow is run from a feature branch, it will act as an additional CI
+# check and fail if the checked-in `dist/` directory does not match what is
+# expected from the build.
+name: Check Transpiled JavaScript
 
 on:
   push:
@@ -6,8 +15,12 @@ on:
   merge_group:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   check-dist:
+    name: Check dist/
     runs-on: ubuntu-latest
 
     steps:
@@ -25,19 +38,22 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - run: |
-          pnpm run build
-          pnpm run package
+          pnpm run build && pnpm run package
 
-      - run: |
-          if [[ "$(git diff --ignore-space-at-eol dist/ | wc -l)" -gt 0 ]]; then
+      # This will fail the workflow if the PR wasn't created by Dependabot.
+      - name: Compare Directories
+        run: |
+          if [[ "$(git diff --ignore-space-at-eol --text dist/ | wc -l)" -gt 0 ]]; then
             echo "Detected uncommitted changes after build. See status below:"
             git diff --text --ignore-space-at-eol dist/
             exit 1
           fi
         id: diff
 
+      # If `dist/` was different than expected, and this was not a Dependabot
+      # PR, upload the expected version as a workflow artifact.
       - uses: actions/upload-artifact@v4
-        if: ${{ failure() && steps.diff.conclusion == 'failure' }}
+        if: ${{ steps.diff.outcome == 'failure' }}
         with:
           name: dist
           path: dist/
