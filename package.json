@@ -13,7 +13,7 @@
     "lint": "biome lint .",
     "lint:fix": "biome lint --apply .",
     "package": "ncc build --source-map --license licenses.txt --minify",
-    "all": "concurrently 'pnpm run build' 'pnpm run check' 'pnpm run package'"
+    "all": "pnpm run build && pnpm run check && pnpm run package"
   },
   "repository": {
     "type": "git",
