@@ -19,11 +19,7 @@
     "type": "git",
     "url": "git+https://github.com/KineticCafe/actions-dco.git"
   },
-  "keywords": [
-    "github-actions",
-    "dco",
-    "dco-signoff"
-  ],
+  "keywords": ["github-actions", "dco", "dco-signoff"],
   "bugs": {
     "url": "https://github.com/KineticCafe/actions-dco/issues"
   },
