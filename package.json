@@ -31,7 +31,7 @@
     "email-validator": "^2.0.4"
   },
   "devDependencies": {
-    "@biomejs/biome": "1.6.4",
+    "@biomejs/biome": "1.7.0",
     "@octokit/types": "^12.6.0",
     "@types/escape-html": "^1.0.4",
     "@types/node": "^20.11.20",
