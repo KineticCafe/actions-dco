@@ -1,11 +1,43 @@
 version: 2
 updates:
-  - package-ecosystem: github-actions
-    directory: /
-    schedule:
-      interval: monthly
-
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: monthly
+      time: '10:00'
+      timezone: 'America/Toronto'
+    commit-message:
+      prefix: chore
+    groups:
+      pnpm-dev:
+        applies-to: version-updates
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+        exclude-patterns:
+          - '@biomejs/biome'
+
+      pnpm-prod:
+        applies-to: version-updates
+        dependency-type: production
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+      time: '10:00'
+      timezone: 'America/Toronto'
+    commit-message:
+      prefix: chore
+    groups:
+      actions:
+        applies-to: version-updates
+        patterns:
+          - '*'
+        update-types:
+          - minor
+          - patch
