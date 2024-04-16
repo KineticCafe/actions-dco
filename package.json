@@ -32,7 +32,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "1.7.0",
-    "@octokit/types": "^12.6.0",
+    "@octokit/types": "^13.4.1",
     "@types/escape-html": "^1.0.4",
     "@types/node": "^20.11.20",
     "@vercel/ncc": "^0.38.1",
@@ -40,6 +40,5 @@
     "escape-html": "^1.0.3",
     "js-yaml": "^4.1.0",
     "typescript": "5.4.5"
-  },
-  "packageManager": "pnpm@8.7.6"
+  }
 }
