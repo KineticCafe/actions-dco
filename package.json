@@ -34,7 +34,7 @@
     "@biomejs/biome": "1.9.3",
     "@octokit/types": "13.5.0",
     "@types/escape-html": "^1.0.4",
-    "@types/node": "^20.14.9",
+    "@types/node": "^22.8.6",
     "@vercel/ncc": "^0.38.1",
     "concurrently": "^9.0.1",
     "escape-html": "^1.0.3",
