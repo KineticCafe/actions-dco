@@ -8,22 +8,9 @@ updates:
       timezone: 'America/Toronto'
     commit-message:
       prefix: chore
-    groups:
-      pnpm-dev:
-        applies-to: version-updates
-        dependency-type: development
-        update-types:
-          - minor
-          - patch
-        exclude-patterns:
-          - '@biomejs/biome'
-
-      pnpm-prod:
-        applies-to: version-updates
-        dependency-type: production
-        update-types:
-          - minor
-          - patch
+    ignore:
+      - dependency-name: '@types/node'
+        versions: ['22.x.x']
 
   - package-ecosystem: github-actions
     directory: /
@@ -33,11 +20,3 @@ updates:
       timezone: 'America/Toronto'
     commit-message:
       prefix: chore
-    groups:
-      actions:
-        applies-to: version-updates
-        patterns:
-          - '*'
-        update-types:
-          - minor
-          - patch
