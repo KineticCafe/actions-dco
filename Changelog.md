@@ -1,12 +1,20 @@
 # KineticCafe/actions-dco Changelog
 
+## 1.3.1 / 2024-11-01
+
+- Upgrade dependencies.
+
+- Add CodeQL configuration.
+
+- Switch to Mise for local dependency management instead of NVM with direnv.
+
 ## 1.3 / 2024-02-28
 
 - Upgrade dependencies.
 
 - Improved governance documentation, mostly by adding it.
 
-- Switched from eslint/prettier to Biome.
+- Switched from ESLint & prettier to Biome.
 
 - Included action / version in the output.
 
@@ -23,5 +31,5 @@
 
 ## 1.0 / 2023-06-12
 
-- Initial release. This is a Typescript port of tisonkun/actions-dco set
-  to use Node v16.
+- Initial release. This is a Typescript port of tisonkun/actions-dco set to use
+  Node v16.
