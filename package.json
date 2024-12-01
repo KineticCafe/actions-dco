@@ -35,7 +35,7 @@
     "@octokit/types": "13.6.1",
     "@types/escape-html": "^1.0.4",
     "@types/node": "^20.17.9",
-    "@vercel/ncc": "^0.38.1",
+    "@vercel/ncc": "^0.38.3",
     "concurrently": "^9.1.0",
     "escape-html": "^1.0.3",
     "js-yaml": "^4.1.0",
