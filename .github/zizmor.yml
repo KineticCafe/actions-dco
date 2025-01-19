@@ -1,0 +1,4 @@
+rules:
+  unpinned-uses:
+    ignore:
+      - dco.yml:21:9
