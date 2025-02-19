@@ -1,5 +1,9 @@
 # KineticCafe/actions-dco Changelog
 
+## 1.3.3 / 2025-02-18
+
+- Upgrade dependencies, resolving a potential security issue.
+
 ## 1.3.2 / 2024-12-01
 
 - Upgrade dependencies.
