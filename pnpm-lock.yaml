@@ -28,8 +28,8 @@ importers:
         specifier: ^1.0.4
         version: 1.0.4
       '@types/node':
-        specifier: ^20.17.28
-        version: 20.17.28
+        specifier: ^20.17.32
+        version: 20.17.32
       '@vercel/ncc':
         specifier: ^0.38.3
         version: 0.38.3
@@ -171,8 +171,8 @@ packages:
   '@types/escape-html@1.0.4':
     resolution: {integrity: sha512-qZ72SFTgUAZ5a7Tj6kf2SHLetiH5S6f8G5frB2SPQ3EyF02kxdyBFf4Tz4banE3xCgGnKgWLt//a6VuYHKYJTg==}
 
-  '@types/node@20.17.28':
-    resolution: {integrity: sha512-DHlH/fNL6Mho38jTy7/JT7sn2wnXI+wULR6PV4gy4VHLVvnrV/d3pHAMQHhc4gjdLmK2ZiPoMxzp6B3yRajLSQ==}
+  '@types/node@20.17.32':
+    resolution: {integrity: sha512-zeMXFn8zQ+UkjK4ws0RiOC9EWByyW1CcVmLe+2rQocXRsGEDxUCwPEIVgpsGcLHS/P8JkT0oa3839BRABS0oPw==}
 
   '@vercel/ncc@0.38.3':
     resolution: {integrity: sha512-rnK6hJBS6mwc+Bkab+PGPs9OiS0i/3kdTO+CkI8V0/VrW3vmz7O2Pxjw/owOlmo6PKEIxRSeZKv/kuL9itnpYA==}
@@ -445,7 +445,7 @@ snapshots:
 
   '@types/escape-html@1.0.4': {}
 
-  '@types/node@20.17.28':
+  '@types/node@20.17.32':
     dependencies:
       undici-types: 6.19.8
 
