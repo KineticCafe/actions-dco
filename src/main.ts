@@ -279,7 +279,7 @@ async function run(): Promise<void> {
     throw new Error(`cannot get commits ${base}...${head} - ${compareResult.status}.`)
   }
 
-  const commits = compareResult.data.commits
+  const commits = compareResult.data.commits as Commits
   const dcoResult = getDCOStatus(
     commits,
     github.context.payload.pull_request.html_url ?? '',
