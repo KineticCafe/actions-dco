@@ -37,12 +37,10 @@
 
 import * as core from '@actions/core'
 import * as github from '@actions/github'
+import type { Endpoints } from '@octokit/types'
 import * as validator from 'email-validator'
 import escapeHtml from 'escape-html'
-
 import { name as NAME, version as VERSION } from '../package.json'
-
-import type { Endpoints } from '@octokit/types'
 
 type ResponseType = Endpoints['GET /repos/{owner}/{repo}/compare/{basehead}']['response']
 type CommitCompare = ResponseType['data']
