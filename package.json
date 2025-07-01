@@ -19,7 +19,11 @@
     "type": "git",
     "url": "git+https://github.com/KineticCafe/actions-dco.git"
   },
-  "keywords": ["github-actions", "dco", "dco-signoff"],
+  "keywords": [
+    "github-actions",
+    "dco",
+    "dco-signoff"
+  ],
   "bugs": {
     "url": "https://github.com/KineticCafe/actions-dco/issues"
   },
@@ -31,7 +35,7 @@
     "email-validator": "^2.0.4"
   },
   "devDependencies": {
-    "@biomejs/biome": "1.9.4",
+    "@biomejs/biome": "2.0.6",
     "@octokit/types": "^14.0.0",
     "@types/escape-html": "^1.0.4",
     "@types/node": "^20.17.57",
