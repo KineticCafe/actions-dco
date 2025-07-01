@@ -36,7 +36,7 @@
     "@types/escape-html": "^1.0.4",
     "@types/node": "^20.17.57",
     "@vercel/ncc": "^0.38.3",
-    "concurrently": "^9.1.2",
+    "concurrently": "^9.2.0",
     "escape-html": "^1.0.3",
     "js-yaml": "^4.1.0",
     "typescript": "5.8.3"
