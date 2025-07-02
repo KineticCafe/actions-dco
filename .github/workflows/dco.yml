@@ -3,6 +3,7 @@ name: Check DCO
 on:
   pull_request:
 
+permissions: {}
 
 jobs:
   local:
@@ -19,8 +20,3 @@ jobs:
           persist-credentials: false
 
       - uses: ./
-        with:
-          exempt-authors: |
-            austin@zieglers.ca
-            @kineticcommerce.com
-            @kineticcafe.com
