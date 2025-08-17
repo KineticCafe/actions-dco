@@ -38,7 +38,7 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 import type { Endpoints } from '@octokit/types'
-import * as validator from 'email-validator'
+import * as emailValidator from 'email-validator'
 import escapeHtml from 'escape-html'
 import { name as NAME, version as VERSION } from '../package.json'
 
@@ -75,9 +75,23 @@ const formatSignoffHtml = (committer: Partial<Committer>): string =>
 const formatSignoff = ({ email, name }: Partial<Committer>): string =>
   `"${name ?? 'MISSING NAME'} <${email ?? 'MISSING EMAIL'}>"`
 
-const isAuthorExempt = (record: DCORecord, authorExemptions: Exemptions): boolean =>
-  authorExemptions.exact.some((email) => email === record.author.email) ||
-  authorExemptions.endsWith.some((domain) => record.author.email?.endsWith(domain))
+const isAuthorExempt = (record: DCORecord, authorExemptions: Exemptions): boolean => {
+  if (authorExemptions.exact.some((email) => email === record.author.email)) {
+    core.debug(
+      `${record.sha}: author ${record.author.email} exempt from DCO by exact match`,
+    )
+    return true
+  }
+
+  if (authorExemptions.endsWith.some((domain) => record.author.email?.endsWith(domain))) {
+    core.debug(
+      `${record.sha}: author ${record.author.email} exempt from DCO by domain match`,
+    )
+    return true
+  }
+
+  return false
+}
 
 const getDCOStatus = (
   commits: Commits,
@@ -86,12 +100,20 @@ const getDCOStatus = (
 ): DCOResult => {
   const result: DCOResult = { exempted: [], failed: [] }
 
+  core.debug(
+    `getDCOStatus(<${commits.length}> commits, ${url}, <${
+      authorExemptions.exact.length
+    }, ${authorExemptions.endsWith.length}> exemptions)`,
+  )
+
   for (const { commit, author, parents, sha } of commits) {
     if (parents && parents.length > 1) {
+      core.debug(`commit ${sha}: skipping merge commit`)
       continue
     }
 
     if (author?.type === 'Bot') {
+      core.debug(`commit ${sha}: skipping bot commit (${author.name} ${author.email})`)
       continue
     }
 
@@ -103,7 +125,7 @@ const getDCOStatus = (
       message: '',
     }
 
-    const signoffs = getSignoffs(commit)
+    const signoffs = getSignoffs(sha, commit)
 
     if (signoffs.length === 0) {
       if (isAuthorExempt(info, authorExemptions)) {
@@ -111,6 +133,8 @@ const getDCOStatus = (
       } else {
         info.message = 'No Signed-off-by trailer found.'
         result.failed.push(info)
+
+        core.debug(`commit ${sha}: No exemptions or Signed-off-by trailer found. Failed.`)
       }
 
       continue
@@ -121,12 +145,18 @@ const getDCOStatus = (
     if (!email) {
       info.message = 'Cannot find email for commit author or committer'
       result.failed.push(info)
+
+      core.debug(`commit ${sha}: ${info.message}`)
+
       continue
     }
 
-    if (!validator.validate(email)) {
+    if (!emailValidator.validate(email)) {
       info.message = `${email} does not look like a valid email address.`
       result.failed.push(info)
+
+      core.debug(`commit ${sha}: ${info.message}`)
+
       continue
     }
 
@@ -135,6 +165,9 @@ const getDCOStatus = (
     if (!name) {
       info.message = 'Cannot find name for commit author or committer'
       result.failed.push(info)
+
+      core.debug(`commit ${sha}: ${info.message}`)
+
       continue
     }
 
@@ -144,11 +177,21 @@ const getDCOStatus = (
     const expected =
       commitAuthor.name === commitCommitter.name &&
       commitAuthor.email === commitCommitter.email
-        ? formatSignoff(commitAuthor)
-        : `${formatSignoff(commitAuthor)} or ${formatSignoff(commitCommitter)}`
+        ? `'${formatSignoff(commitAuthor)}'`
+        : `'${formatSignoff(commitAuthor)}' or '${formatSignoff(commitCommitter)}'`
 
     const authors = [commitAuthor.name.toLowerCase(), commitCommitter.name.toLowerCase()]
     const emails = [commitAuthor.email.toLowerCase(), commitCommitter.email.toLowerCase()]
+
+    const signoffAuthors = JSON.stringify(signoffs.map(({ name }) => name.toLowerCase()))
+    const signoffEmails = JSON.stringify(signoffs.map(({ email }) => email.toLowerCase()))
+
+    core.debug(
+      `commit ${sha}: Matching authors: signoffs=${signoffAuthors} commit=${JSON.stringify(authors)}`,
+    )
+    core.debug(
+      `commit ${sha}: Matching emails: signoffs=${signoffEmails} commit=${JSON.stringify(emails)}`,
+    )
 
     const valid = signoffs.filter(
       ({ name: signoffName, email: signoffEmail }) =>
@@ -156,13 +199,19 @@ const getDCOStatus = (
         emails.includes(signoffEmail.toLowerCase()),
     )
 
-    if (valid.length === 0) {
-      const got = signoffs.map((identity) => formatSignoff(identity)).join(', ')
+    const foundSignoffs = signoffs.map((identity) => formatSignoff(identity)).join(', ')
 
+    core.debug(`commit ${sha}: Found ${signoffs.length} signoff(s): ${foundSignoffs}`)
+    core.debug(
+      `commit ${sha}: Matched ${valid.length} signoffs against author or committer`,
+    )
+    core.debug(`commit ${sha}: ${valid.length > 0 ? 'Success' : 'Failed'}`)
+
+    if (valid.length === 0) {
       info.message =
         signoffs.length === 1
-          ? `Expected ${expected}, but got ${got}.`
-          : `Cannot find ${expected} in sign-offs: ${got}.`
+          ? `Expected ${expected}, but got ${foundSignoffs}.`
+          : `Cannot find ${expected} in sign-offs: ${foundSignoffs}.`
 
       result.failed.push(info)
     }
@@ -171,20 +220,23 @@ const getDCOStatus = (
   return result
 }
 
-const signoffRE = /^Signed-off-by: (.*) <(.*)>$/gim
+const signoffRE = /^signed-off-by: (?<name>.*) <(?<email>.*)>$/gim
 
-const getSignoffs = ({ message }: { message: string }): Committer[] => {
-  const matches = []
+const getSignoffs = (sha: string, { message }: { message: string }): Committer[] => {
+  const matches = [...message.matchAll(signoffRE)]
+    .map((match) => {
+      return match.groups
+        ? {
+            name: match.groups.name,
+            email: match.groups.email,
+          }
+        : undefined
+    })
+    .filter((committer) => committer !== undefined)
 
-  while (true) {
-    const match = signoffRE.exec(message)
-
-    if (match == null) {
-      break
-    }
-
-    matches.push({ name: match[1], email: match[2] })
-  }
+  core.debug(
+    `commit ${sha}: ${matches.length} sign-off(s) on commit message: ${JSON.stringify(matches)}`,
+  )
 
   return matches
 }
@@ -202,9 +254,7 @@ const buildMessage = (commitLength: number, dcoFailed: DCORecord[]): string =>
     ? `Commit ${formatSha(dcoFailed[0])} is incorrectly signed off.`
     : dcoFailed.length === commitLength
       ? `All commits (${formatSha(dcoFailed)}) are incorrectly signed off.`
-      : `${dcoFailed.length} commits in ${formatSha(
-          dcoFailed,
-        )} are incorrectly signed off.`
+      : `${dcoFailed.length} commits in ${formatSha(dcoFailed)} are incorrectly signed off.`
 
 const getAuthorExemptions = (): Exemptions => {
   const exemptions = core
@@ -262,6 +312,9 @@ async function run(): Promise<void> {
 
   const base = github.context.payload.pull_request.base.sha
   const head = github.context.payload.pull_request.head.sha
+  const range = `${base}...${head}`
+
+  core.debug(`Actions DCO Comparing ${range}`)
 
   const compareResult = await client.rest.repos.compareCommitsWithBasehead({
     owner: github.context.repo.owner,
@@ -270,11 +323,11 @@ async function run(): Promise<void> {
   })
 
   if (!compareResult) {
-    throw new Error(`cannot get commits ${base}...${head} - not found.`)
+    throw new Error(`Cannot get commits ${base}...${head} - not found.`)
   }
 
   if (compareResult.status !== 200) {
-    throw new Error(`cannot get commits ${base}...${head} - ${compareResult.status}.`)
+    throw new Error(`Cannot get commits ${base}...${head} - ${compareResult.status}.`)
   }
 
   const commits = compareResult.data.commits as Commits
