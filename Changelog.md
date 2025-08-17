@@ -1,5 +1,16 @@
 # KineticCafe/actions-dco Changelog
 
+## 1.3.6 / 2025-08-17
+
+- Upgrade dependencies.
+
+- Added debug logs to try to debug [#169][issue-169].
+
+- Change `gitSignoffs` to use `String.prototype.matchAll()` instead of
+  `Regexp.prototype.exec()`, and to use named capture groups. While I don't
+  expect this to fix [#169][issue-169] based on the example data provided, it
+  should result in improved pattern matching across multiple commits.
+
 ## 1.3.5 / 2025-08-01
 
 - Upgrade dependencies.
@@ -49,3 +60,5 @@
 
 - Initial release. This is a Typescript port of tisonkun/actions-dco set to use
   Node v16.
+
+[issue-169]: https://github.com/KineticCafe/actions-dco/issues/169
