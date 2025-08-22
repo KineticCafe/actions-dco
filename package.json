@@ -1,6 +1,6 @@
 {
   "name": "@kineticcafe/actions-dco",
-  "version": "1.3.5",
+  "version": "1.3.7",
   "author": "Kinetic Commerce",
   "description": "Check pull requests for DCO sign-off",
   "main": "lib/main.js",
