@@ -1,5 +1,9 @@
 # KineticCafe/actions-dco Changelog
 
+## 1.3.8 / 2025-09-07
+
+- Upgrade dependencies.
+
 ## 1.3.7 / 2025-08-23
 
 - Bump version number as it was forgotten for 1.3.6.
