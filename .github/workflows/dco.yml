@@ -12,7 +12,6 @@ jobs:
 
     permissions:
       contents: read
-      pull-requests: write
 
     steps:
       - name: Harden the runner
