@@ -1,18 +1,35 @@
 version: 2
-updates:
-  - package-ecosystem: npm
-    directory: /
-    schedule:
-      interval: monthly
-    commit-message:
-      prefix: chore
-    ignore:
-      - dependency-name: '@types/node'
-        versions: ['22.x.x']
 
+updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
     commit-message:
-      prefix: chore
+      prefix: 'deps'
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: 'deps'
+    ignore:
+      - dependency-name: '@types/node'
+        versions: ['22.x.x']
+    cooldown:
+      default-days: 7
+    groups:
+      bundler:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
