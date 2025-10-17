@@ -1,5 +1,9 @@
 # KineticCafe/actions-dco Changelog
 
+## 2.0.0 / 2025-10-17
+
+- Upgraded dependencies and set runtime as Node v24.
+
 ## 1.3.8 / 2025-09-07
 
 - Upgrade dependencies.
