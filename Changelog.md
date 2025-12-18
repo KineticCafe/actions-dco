@@ -1,5 +1,11 @@
 # KineticCafe/actions-dco Changelog
 
+## 2.1.0 / 2025-12-17
+
+- Upgraded dependencies.
+
+- Added a possible workaround to [#198][issue-198].
+
 ## 2.0.0 / 2025-10-17
 
 - Upgraded dependencies and set runtime as Node v24.
@@ -74,3 +80,4 @@
   Node v16.
 
 [issue-169]: https://github.com/KineticCafe/actions-dco/issues/169
+[issue-198]: https://github.com/KineticCafe/actions-dco/issues/198

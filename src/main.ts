@@ -350,7 +350,7 @@ async function run(): Promise<void> {
         `<a href="${record.url}"><code>${formatSha(record)}</code></a>`,
         formatSignoffHtml(record.author),
         formatSignoffHtml(record.committer),
-        record.message,
+        escapeHtml(record.message),
       ]),
     ])
   }
