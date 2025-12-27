@@ -1,7 +1,4 @@
 rules:
-  artipacked:
-    ignore:
-      - check-dist.yml:102:9
   unpinned-uses:
     ignore:
       - dco.yml:21:9
