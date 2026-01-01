@@ -24,7 +24,7 @@ updates:
       prefix: 'deps'
     ignore:
       - dependency-name: '@types/node'
-        versions: ['22.x.x']
+        update-types: [version-update:semver-major]
     cooldown:
       default-days: 7
     groups:
