@@ -30,15 +30,15 @@
   "homepage": "https://github.com/KineticCafe/actions-dco#readme",
   "license": "Apache-2.0",
   "dependencies": {
-    "@actions/core": "^2.0.0",
+    "@actions/core": "^2.0.2",
     "@actions/github": "^6.0.1",
     "email-validator": "^2.0.4"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.3.10",
+    "@biomejs/biome": "2.3.12",
     "@octokit/types": "^16.0.0",
     "@types/escape-html": "^1.0.4",
-    "@types/node": "^24.10.4",
+    "@types/node": "^24.10.9",
     "@vercel/ncc": "^0.38.4",
     "concurrently": "^9.2.1",
     "escape-html": "^1.0.3",
