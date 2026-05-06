@@ -1,6 +1,4 @@
-# Copyright 2023-2025 Kinetic Commerce and contributors
-#
-# Derived from tisonkun/actions-dco, copyright 2021 tison <wander4096@gmail.com>
+# Copyright 2023-2026 Kinetic Commerce and contributors
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this
 # file except in compliance with the License. You may obtain a copy of the License at
@@ -14,27 +12,40 @@
 
 name: 'Enforce DCO Sign-off'
 description: |
-  Enforce Developer Certificate of Origin (DCO) sign-off on Pull Requests
+  Enforce Developer Certificate of Origin (DCO) sign-off on Pull Requests. Validates that
+  commits have proper Signed-off-by trailers matching commit identities.
 author: 'KineticCafe'
+
 inputs:
   repo-token:
-    description: 'The GitHub token'
+    description: |
+      The GitHub token for use with this action. Must have permission to read pull request
+      details. When comments are enabled, add `pull-requests: write`.
     required: false
     default: ${{ github.token }}
+
+  config:
+    description: |
+      Embedded TOML configuration. This is the preferred way to configure the action. See
+      documentation for the full configuration reference.
+    required: false
+    default: ''
+
   exempt-authors:
     description: |
-      A whitespace separated list of email exemption patterns indicating an implied DCO
-      sign-off (the contributors work for the company managing the project, for example).
-      Permitted pattern formats are exact emails (`name@example.org`) or domain patterns
-      (`@example.org`). Patterns that do not match this will be printed as warnings and
-      ignored.
+      DEPRECATED: Use the `config` input instead.
 
-      `exempt-authors` are applied only for the commit _author_. The commit _committer_
-      cannot exempt other peoples' contributions.
+      A whitespace-separated list of email exemption patterns. Entries starting with @ are
+      domain patterns; otherwise exact email match. Applied to commit author only.
+    required: false
+    default: ''
+    deprecationMessage: |
+      The exempt-authors input is deprecated. Use the config input with embedded TOML
+      instead.
 
 runs:
   using: 'node24'
-  main: 'dist/index.js'
+  main: 'dist/dco_check.cjs'
 
 branding:
   icon: check-circle

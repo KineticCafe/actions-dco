@@ -1,0 +1,16 @@
+input: api.github.com.min.yaml
+# input: api.github.com.yaml
+mode: client
+
+validate: true
+
+targets:
+  - package: dco_check/internal/github
+    output:
+      dir: ./src
+    include:
+      paths:
+        - "/repos/{owner}/{repo}/compare/{basehead}"
+        - "/repos/{owner}/{repo}/issues/{issue_number}/comments"
+        - "/repos/{owner}/{repo}/issues/comments/{comment_id}"
+        - "/repos/{owner}/{repo}/issues/{issue_number}/comments"

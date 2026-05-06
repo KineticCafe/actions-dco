@@ -1,0 +1,65 @@
+name: Gleam verify
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  test:
+    name: Run Gleam tests
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          disable-sudo: true
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+            builds.hex.pm:443
+            github.com:443
+            registry.npmjs.org:443
+            release-assets.githubusercontent.com:443
+            repo.hex.pm:443
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - uses: erlef/setup-beam@fc68ffb90438ef2936bbb3251622353b3dcb2f93 # v1.24.0
+        with:
+          otp-version: "28"
+          gleam-version: "1.15"
+          rebar3-version: "3"
+
+      - run: gleam deps download
+
+      - run: gleam format --check src test
+
+      - run: gleam build
+      - run: gleam test
+
+      - run: gleam run -m pontil_build
+
+      - name: Ensure that nothing changed in dist (action is not ready)
+        id: diff
+        run: |
+          if [[ "$(git diff --ignore-space-at-eol --text dist/ | wc -l)" -gt 0 ]]; then
+            echo "Detected uncommitted changes after build. See status below:"
+            git diff --text --ignore-space-at-eol dist/
+            exit 1
+          fi
+
+
