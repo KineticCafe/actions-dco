@@ -1,7 +1,8 @@
 # Licence
 
-@KineticCafe/actions-dco is copyright © 2023-2025 Kinetic Commerce and
-contributors under the [Apache License, version 2.0][apache-license-20], except:
+@KineticCafe/actions-dco is copyright © 2023-2026 Kinetic Commerce, Austin
+Ziegler, and contributors under the
+[Apache License, version 2.0][apache-license-20], except:
 
 - The copies of the Apache License and the Developer Certificate of Origin in
   `licenses/`.

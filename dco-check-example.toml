@@ -1,0 +1,45 @@
+# Example DCO check configuration.
+#
+# Use inline via the `config` input:
+#
+#   - uses: KineticCafe/actions-dco@v3.0.0
+#     with:
+#       config: |
+#         exempt-authors = ["@example.com"]
+
+# Exempt authors — implied DCO sign-off.
+# Entries starting with @ are domain patterns; otherwise exact email match.
+# Applied to commit author only.
+exempt-authors = ["joe@example.net", "@example.com"]
+
+# Enable PR comment with results.
+# Requires pull-requests: write permission on the token.
+# Default: false
+comment = false
+
+[bots]
+# Bot exemption policy.
+#   "all"        — all type: "Bot" commits are exempt (v2 default)
+#   "none"       — no bots are exempt; all require valid sign-offs
+#   "well-known" — only recognized bots are exempt, by category
+#   "allowlist"  — only explicitly listed bot logins are exempt
+policy = "well-known"
+
+# Categories for policy = "well-known".
+# If omitted, all categories are enabled.
+# Options: "dependency-updaters", "ci-cd", "release"
+categories = ["dependency-updaters", "ci-cd", "release"]
+
+# Explicit bot logins for policy = "allowlist".
+# allow = ["dependabot[bot]", "renovate[bot]"]
+
+[alias-signoffs.aliases]
+# Map a commit identity email to accepted sign-off emails.
+#
+# Keyed by commit identity (not sign-off email) for safety: this scopes the
+# alias to a specific committer, preventing a sign-off email from being
+# granted blanket acceptance across unrelated commits.
+#
+# Example: dependabot commits as 49699333+dependabot[bot]@users.noreply.github.com
+# but signs off as support@github.com.
+"49699333+dependabot[bot]@users.noreply.github.com" = ["support@github.com"]

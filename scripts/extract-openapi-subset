@@ -1,0 +1,197 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Extracts a subset of an OpenAPI spec containing only the specified paths
+# and their transitive $ref dependencies.
+#
+# Usage: ruby extract-openapi-subset <spec.json|spec.yaml|url> paths...
+
+require "json"
+require "yaml"
+require "uri"
+require "net/http"
+
+# Cache of fetched documents keyed by URI string (without fragment).
+@doc_cache = {}
+
+def url?(input)
+  input.match?(%r{\Ahttps?://})
+end
+
+def fetch_url(url)
+  uri = URI(url)
+  response = Net::HTTP.get_response(uri)
+  abort "Failed to fetch #{url}: #{response.code}" unless response.is_a?(Net::HTTPSuccess)
+  response.body
+end
+
+def read_source(input)
+  if input == "-"
+    $stdin.read
+  elsif url?(input)
+    fetch_url(input)
+  else
+    File.read(input)
+  end
+end
+
+def parse_with_format(raw)
+  if /^\As*[{]/.match?(raw)
+    [JSON.parse(raw), :json]
+  else
+    [YAML.safe_load(raw), :yaml]
+  end
+end
+
+def detect_format_from_ext(path)
+  path.end_with?(".yaml", ".yml") ? :yaml : :json
+end
+
+def load_document(input)
+  raw = read_source(input)
+  @doc_cache[input], format = parse_with_format(raw)
+  [@doc_cache[input], format]
+end
+
+# Resolve a $ref string, which may be:
+#   - local:  "#/components/schemas/Foo"
+#   - remote: "https://example.com/spec.json#/components/schemas/Foo"
+#   - remote without fragment: "https://example.com/spec.json"
+#
+# Returns [document, json_pointer_parts, resolved_value].
+# Caches remote documents so each URL is fetched at most once.
+def resolve_ref(ref, base_doc)
+  uri_part, fragment = ref.split("#", 2)
+
+  doc = if uri_part.empty?
+    base_doc
+  else
+    @doc_cache[uri_part] ||= parse_with_format(read_source(uri_part)).first
+  end
+
+  if fragment.nil? || fragment.empty?
+    [doc, [], doc]
+  else
+    parts = fragment.delete_prefix("/").split("/")
+    resolved = doc.dig(*parts) or abort "Unresolvable $ref: #{ref}"
+    [doc, parts, resolved]
+  end
+end
+
+# Walk a structure and collect all $ref targets transitively.
+# Returns a set of [document_key, json_pointer_parts, resolved_value] tuples.
+def collect_refs(root, base_doc)
+  seen = Set.new
+  results = []
+  queue = [[root, base_doc]]
+
+  until queue.empty?
+    node, doc = queue.shift
+
+    case node
+    when Hash
+      if node.key?("$ref")
+        ref = node["$ref"]
+        unless seen.include?(ref)
+          seen << ref
+          ref_doc, parts, resolved = resolve_ref(ref, doc)
+          results << [ref, parts, resolved] unless parts.empty?
+          queue << [resolved, ref_doc] if resolved
+        end
+      end
+      node.each_value { |v| queue << [v, doc] }
+    when Array
+      node.each { |v| queue << [v, doc] }
+    end
+  end
+
+  results
+end
+
+def build_subset(spec, kept_paths, refs, strip: [])
+  subset = spec.slice("openapi", "info", "servers", "tags", "externalDocs", "security")
+  subset["paths"] = kept_paths
+
+  if spec.dig("components", "securitySchemes")
+    (subset["components"] ||= {})["securitySchemes"] = spec["components"]["securitySchemes"]
+  end
+
+  refs.each do |_ref, parts, resolved|
+    next if parts.empty?
+
+    target = subset
+    parts[0..-2].each { |part| target = (target[part] ||= {}) }
+    target[parts.last] = resolved
+  end
+
+  strip_keys!(subset, strip) unless strip.empty?
+
+  subset
+end
+
+# Recursively remove keys from all hashes in the structure.
+def strip_keys!(node, keys)
+  case node
+  when Hash
+    keys.each { |k| node.delete(k) }
+    node.each_value { |v| strip_keys!(v, keys) }
+  when Array
+    node.each { |v| strip_keys!(v, keys) }
+  end
+end
+
+def serialize(subset, format)
+  (format == :yaml) ? YAML.dump(subset) : JSON.pretty_generate(subset)
+end
+
+# --- main ---
+
+require "optparse"
+
+STRIP_MAP = {
+  "tags" => %w[tags],
+  "external-docs" => %w[externalDocs],
+  "examples" => %w[examples example]
+}.freeze
+
+output = nil
+strip = []
+
+OptionParser.new do |opts|
+  opts.banner = "Usage: #{$0} [options] <spec.json|spec.yaml|url> [paths...]"
+  opts.on("-o", "--output FILE", "Output file (default: stdout)") { |f| output = f }
+  opts.on("--strip LIST", "Comma-separated keys to strip: #{STRIP_MAP.keys.join(",")}") do |list|
+    list.split(",").each do |key|
+      if key == "all"
+        strip.concat(*STRIP_MAP.values).uniq
+      elsif STRIP_MAP.key?(key)
+        strip.concat(STRIP_MAP[key]).uniq!
+      else
+        abort "Unknown strip key: #{key} (known: #{STRIP_MAP.keys.join(", ")})"
+      end
+    end
+  end
+end.parse!
+
+input = ARGV.shift or abort "Usage: #{$0} [options] <spec.json|spec.yaml|url> PATHS..."
+ARGV.empty? and abort "Usage: #{$0} [options] <spec.json|spec.yaml|url> PATHS..."
+
+spec, format = load_document(input)
+format = detect_format_from_ext(output) if output
+
+kept_paths = {}
+ARGV.each do |p|
+  abort "Path #{p} not found in spec" unless spec.dig("paths", p)
+  kept_paths[p] = spec["paths"][p]
+end
+
+refs = collect_refs(kept_paths, spec)
+subset = build_subset(spec, kept_paths, refs, strip:)
+
+result = serialize(subset, format)
+
+if output
+  File.write(output, result)
+else
+  puts result
+end
