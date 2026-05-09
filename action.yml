@@ -1,4 +1,4 @@
-# Copyright 2023-2026 Kinetic Commerce and contributors
+# Copyright 2023-2026 Kinetic Commerce, Austin Ziegler, and contributors
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this
 # file except in compliance with the License. You may obtain a copy of the License at
@@ -12,9 +12,8 @@
 
 name: 'Enforce DCO Sign-off'
 description: |
-  Enforce Developer Certificate of Origin (DCO) sign-off on Pull Requests. Validates that
-  commits have proper Signed-off-by trailers matching commit identities.
-author: 'KineticCafe'
+  Enforce Developer Certificate of Origin (DCO) sign-off on Pull Requests.
+author: 'Austin Ziegler'
 
 inputs:
   repo-token:
