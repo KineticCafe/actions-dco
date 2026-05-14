@@ -2,6 +2,7 @@ import dco_check/config.{
   AllBots, Allowlist, CiCd, DependencyUpdaters, NoBots, Release, WellKnownBots,
 }
 import dco_check/internal/bots
+import dco_check/internal/trailers
 
 // --- is_bot_exempt: AllBots ---
 
@@ -115,41 +116,41 @@ pub fn allowlist_case_insensitive_test() {
 
 pub fn no_ai_trailers_test() {
   let msg = "feat: add thing\n\nSigned-off-by: Alice <alice@example.com>"
-  assert bots.has_ai_attribution(msg) == False
+  assert bots.has_ai_attribution(trailers.parse(msg, trailers.Strict)) == False
 }
 
 pub fn assisted_by_claude_test() {
   let msg =
     "feat: add thing\n\nAssisted-by: Claude (Anthropic)\nSigned-off-by: Alice <alice@example.com>"
-  assert bots.has_ai_attribution(msg) == True
+  assert bots.has_ai_attribution(trailers.parse(msg, trailers.Strict)) == True
 }
 
 pub fn co_authored_by_copilot_test() {
   let msg =
     "feat: add thing\n\nCo-authored-by: GitHub Copilot\nSigned-off-by: Alice <alice@example.com>"
-  assert bots.has_ai_attribution(msg) == True
+  assert bots.has_ai_attribution(trailers.parse(msg, trailers.Strict)) == True
 }
 
 pub fn ai_trailer_case_insensitive_value_test() {
   let msg =
     "feat: add thing\n\nAssisted-by: GEMINI (Google)\nSigned-off-by: Alice <alice@example.com>"
-  assert bots.has_ai_attribution(msg) == True
+  assert bots.has_ai_attribution(trailers.parse(msg, trailers.Strict)) == True
 }
 
 pub fn non_ai_co_authored_by_test() {
   let msg =
     "feat: add thing\n\nCo-authored-by: Bob <bob@example.com>\nSigned-off-by: Alice <alice@example.com>"
-  assert bots.has_ai_attribution(msg) == False
+  assert bots.has_ai_attribution(trailers.parse(msg, trailers.Strict)) == False
 }
 
 pub fn assisted_by_kiro_test() {
   let msg =
     "feat: add thing\n\nAssisted-by: Kiro\nSigned-off-by: Alice <alice@example.com>"
-  assert bots.has_ai_attribution(msg) == True
+  assert bots.has_ai_attribution(trailers.parse(msg, trailers.Strict)) == True
 }
 
 pub fn assisted_by_cursor_test() {
   let msg =
     "feat: add thing\n\nAssisted-by: Cursor AI\nSigned-off-by: Alice <alice@example.com>"
-  assert bots.has_ai_attribution(msg) == True
+  assert bots.has_ai_attribution(trailers.parse(msg, trailers.Strict)) == True
 }

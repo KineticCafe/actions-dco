@@ -41,6 +41,7 @@ pub type DcoRecord {
   DcoRecord(
     sha: String,
     url: String,
+    subject: String,
     author: Option(types.GitUser),
     committer: Option(types.GitUser),
     identities: List(Identity),

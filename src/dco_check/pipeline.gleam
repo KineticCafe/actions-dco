@@ -12,6 +12,7 @@ import dco_check/internal/github/decode
 import dco_check/internal/github/response_types
 import dco_check/internal/github/types as github_types
 import dco_check/types.{type DcoRecord, type DcoSummary}
+import gleam/int
 import gleam/javascript/promise.{type Promise}
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -19,6 +20,7 @@ import gleam/result
 import gleam/string
 import oaspec/fetch
 import oaspec/transport
+import pontil
 
 /// Add a bearer token to an AsyncSend.
 pub fn with_auth(
@@ -63,20 +65,30 @@ pub fn process_response(
   config cfg: Config,
 ) -> Result(#(DcoSummary, List(DcoRecord)), DcoCheckError) {
   case response {
-    response_types.ReposCompareCommitsResponseOk(json_body) ->
+    response_types.ReposCompareCommitsResponseOk(json_body) -> {
+      pontil.debug(
+        "process_response: decoding commit comparison ("
+        <> int.to_string(string.length(json_body))
+        <> " bytes)",
+      )
       case decode.decode_commit_comparison(json_body) {
-        Ok(comparison) ->
+        Ok(comparison) -> {
+          pontil.debug(
+            "process_response: decode complete, calling get_dco_status",
+          )
           Ok(dco_check.get_dco_status(
             commits: comparison.commits,
             url: comparison.html_url,
             config: cfg,
             total: comparison.total_commits,
           ))
+        }
         Error(_) ->
           Error(error.ResponseDecodeError(
             "Failed to decode commit comparison JSON",
           ))
       }
+    }
     response_types.ReposCompareCommitsResponseNotFound(err) ->
       Error(error.ApiNotFound(option.unwrap(err.message, "not found")))
     response_types.ReposCompareCommitsResponseInternalServerError(err) ->

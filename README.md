@@ -22,12 +22,12 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
-      - uses: KineticCafe/actions-dco@v3.0.0
+      - uses: KineticCafe/actions-dco@v3.1.0
 ```
 
 ## Versioning
 
-From version 3.0, only exact semantic version tags (`@v3.0.0`, `@v3.1.0`, etc.)
+From version 3.0, only exact semantic version tags (`@v3.1.0`, `@v3.1.0`, etc.)
 will be published. We no longer allow floating tags as part of our repository
 configuration.
 
@@ -54,7 +54,7 @@ Configuration is managed as inline TOML via the `config` input.
 ### Minimal example
 
 ```yaml
-- uses: KineticCafe/actions-dco@v3.0.0
+- uses: KineticCafe/actions-dco@v3.1.0
   with:
     config: |
       exempt-authors = ["joe@example.net", "@example.com"]
@@ -155,10 +155,10 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
-      - uses: KineticCafe/actions-dco@v3.0.0
+      - uses: KineticCafe/actions-dco@v3.1.0
         with:
           config: |
-            commit = true
+            comment = true
 ```
 
 ### Bot Configuration
@@ -251,7 +251,7 @@ permissions:
   pull-requests: write
 
 steps:
-  - uses: KineticCafe/actions-dco@v3.0.0
+  - uses: KineticCafe/actions-dco@v3.1.0
     with:
       config: |
         comment = true

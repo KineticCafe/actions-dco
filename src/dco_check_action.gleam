@@ -11,21 +11,24 @@ import dco_check/types.{
   type DcoRecord, type DcoSummary, InvalidCommit, NoMatch, NoSignoffs,
 }
 import gleam/bool
+import gleam/dict
 import gleam/int
 import gleam/javascript/promise.{type Promise}
 import gleam/list
 import gleam/option
 import gleam/result
 import gleam/string
+import houdini
 import oaspec/fetch
 import oaspec/transport
 import pontil
 import pontil/context
 import pontil/core as pontil_core
-import pontil/summary
+import pontil/summary.{type SummaryElement}
 
 pub fn main() -> Nil {
   pontil.info(dco_check.package_name <> " " <> dco_check.package_version)
+  pontil.register_default_process_handlers()
 
   promise.map(run_pipeline(), fn(result) {
     case result {
@@ -70,7 +73,7 @@ type ActionContext {
 fn run_pipeline() -> Promise(
   Result(#(DcoSummary, List(DcoRecord)), DcoCheckActionError),
 ) {
-  use ctx <- pontil.try_promise(setup())
+  use ctx <- pontil.try_sync(setup())
 
   use response <- promise.try_await(
     pontil.group_async("Fetching commit comparison", fn() {
@@ -90,6 +93,11 @@ fn run_pipeline() -> Promise(
       |> result.map_error(DcoCheckError)
       |> promise.resolve
     }),
+  )
+
+  pontil.debug(
+    "run_pipeline: processing complete, comment="
+    <> bool.to_string(ctx.cfg.comment),
   )
 
   use <- bool.guard(
@@ -139,60 +147,165 @@ fn post_comment(
   })
 }
 
-fn format_comment_body(summary: DcoSummary, records: List(DcoRecord)) -> String {
-  let heading = case summary.failed > 0 || summary.invalid > 0 {
-    True -> "## DCO Check Failed"
-    False -> "## DCO Check Passed ✓"
+pub fn format_comment_body(
+  summary: DcoSummary,
+  records: List(DcoRecord),
+) -> String {
+  let has_failures = summary.failed > 0 || summary.invalid > 0
+
+  let heading = "## " <> summary_heading_h1(has_failures)
+
+  let truncation_note = case summary.truncated {
+    True ->
+      "\n\n> ⚠️ Evaluated "
+      <> int.to_string(summary.evaluated)
+      <> " of "
+      <> int.to_string(summary.total_commits)
+      <> " commits (GitHub API limit)."
+    False -> ""
   }
 
-  let summary_line =
-    int.to_string(summary.passed)
-    <> " passed, "
-    <> int.to_string(summary.failed)
-    <> " failed, "
-    <> int.to_string(summary.invalid)
-    <> " invalid, "
-    <> int.to_string(summary.exempted)
-    <> " exempted, "
-    <> int.to_string(summary.skipped_merge + summary.skipped_bot)
-    <> " skipped."
+  let failures = failure_records(records)
 
-  let failures =
-    list.filter(records, fn(r) {
-      case r.disposition {
-        NoSignoffs | NoMatch(..) | InvalidCommit -> True
-        _ -> False
-      }
-    })
-
-  let failure_table = case failures {
+  let failure_section = case failures {
     [] -> ""
     _ -> {
       let capped = list.take(failures, 20)
       let rows =
         list.map(capped, fn(r) {
-          "| `"
+          "| [`"
           <> dco_check.format_sha(r.sha)
-          <> "` | "
+          <> "`]("
+          <> r.url
+          <> ") | "
+          <> houdini.escape(r.subject)
+          <> " | "
           <> format_disposition(r)
           <> " |"
         })
         |> string.join("\n")
 
-      let header = "\n| Commit | Reason |\n|--------|--------|\n"
       let overflow = case list.length(failures) > 20 {
         True ->
-          "\n\n_and "
+          "\n\n_…and "
           <> int.to_string(list.length(failures) - 20)
-          <> " more commits failed. Consider `git rebase --signoff`._"
+          <> " more. Consider `git rebase --signoff`._"
         False -> ""
       }
 
-      header <> rows <> overflow
+      "\n\n### Issues\n\n| Commit | Subject | Problem |\n|--------|---------|---------|"
+      <> "\n"
+      <> rows
+      <> overflow
     }
   }
 
-  heading <> "\n\n" <> summary_line <> "\n" <> failure_table
+  let success_section = format_success_section(records)
+
+  heading <> truncation_note <> failure_section <> success_section
+}
+
+/// A grouped success entry: identity label, count, and note.
+type SuccessGroup {
+  SuccessGroup(identity: String, count: Int, note: String)
+}
+
+fn format_success_section(records: List(DcoRecord)) -> String {
+  let groups = build_success_groups(records:, counts: dict.new(), order: [])
+
+  case groups {
+    [] -> ""
+    _ -> {
+      let rows =
+        list.map(groups, fn(g) {
+          "| "
+          <> g.identity
+          <> " | "
+          <> int.to_string(g.count)
+          <> " ("
+          <> g.note
+          <> ") |"
+        })
+        |> string.join("\n")
+
+      "\n\n### Commits\n\n| Identity | Commits |\n|----------|---------|"
+      <> "\n"
+      <> rows
+    }
+  }
+}
+
+/// Build grouped success entries. Uses a dict keyed by (identity_label, note) to
+/// accumulate counts, preserving insertion order via a separate key list.
+fn build_success_groups(
+  records records: List(DcoRecord),
+  counts counts: dict.Dict(String, Int),
+  order order: List(SuccessGroup),
+) -> List(SuccessGroup) {
+  case records {
+    [] ->
+      list.reverse(order)
+      |> list.map(fn(g) {
+        let count = case dict.get(counts, g.identity <> "|" <> g.note) {
+          Ok(n) -> n
+          Error(Nil) -> g.count
+        }
+        SuccessGroup(..g, count:)
+      })
+    [record, ..rest] -> {
+      case success_group_for(record) {
+        Ok(group) -> add_success_group(group:, records: rest, counts:, order:)
+        Error(Nil) -> build_success_groups(records: rest, counts:, order:)
+      }
+    }
+  }
+}
+
+fn add_success_group(
+  group group: SuccessGroup,
+  records records: List(DcoRecord),
+  counts counts: dict.Dict(String, Int),
+  order order: List(SuccessGroup),
+) -> List(SuccessGroup) {
+  let key = group.identity <> "|" <> group.note
+
+  let order = case dict.has_key(counts, key) {
+    True -> order
+    False -> [group, ..order]
+  }
+
+  let count = { dict.get(counts, key) |> result.unwrap(or: 0) } + 1
+  let counts = dict.insert(counts, key, count)
+
+  build_success_groups(records:, counts:, order:)
+}
+
+fn success_group_for(record: DcoRecord) -> Result(SuccessGroup, Nil) {
+  case record.disposition {
+    types.Passed -> {
+      let identity = case record.identities {
+        [id, ..] -> id.name <> " <" <> dco_check.mask_email(id.email) <> ">"
+        [] -> "unknown"
+      }
+      Ok(SuccessGroup(identity:, count: 1, note: "signed off"))
+    }
+    types.Exempted(identity:, match:) -> {
+      let label =
+        identity.name <> " <" <> dco_check.mask_email(identity.email) <> ">"
+      let note = case match {
+        types.ExactEmail -> "exempt"
+        types.DomainPattern(pattern) -> "exempt domain " <> pattern
+      }
+      Ok(SuccessGroup(identity: label, count: 1, note:))
+    }
+    types.BotCommit(login:, ..) ->
+      Ok(SuccessGroup(identity: login, count: 1, note: "bot, skipped"))
+    types.MergeCommit ->
+      Ok(SuccessGroup(identity: "merge commits", count: 1, note: "skipped"))
+    types.Skipped(reason) ->
+      Ok(SuccessGroup(identity: "skipped", count: 1, note: reason))
+    _ -> Error(Nil)
+  }
 }
 
 fn setup() -> Result(ActionContext, DcoCheckActionError) {
@@ -279,92 +392,113 @@ fn guard_pr_context(
   )
 }
 
-fn write_summary(
-  summary: DcoSummary,
+pub fn write_summary(
+  dco_summary: DcoSummary,
   records: List(DcoRecord),
 ) -> Result(Nil, pontil_core.PontilCoreError) {
-  let heading = case summary.failed > 0 || summary.invalid > 0 {
-    True -> "DCO Check Failed"
-    False -> "DCO Check Passed"
-  }
+  let has_failures = dco_summary.failed > 0 || dco_summary.invalid > 0
 
-  let elements =
-    summary.new()
-    |> summary.h1(heading)
-    |> summary.separator
+  summary.new()
+  |> summary.h1(summary_heading_h1(has_failures))
+  |> summary_truncated(dco_summary)
+  |> summary_failures(records)
+  |> summary_success_groups(records)
+  |> summary.overwrite()
+}
 
-  let summary_line =
-    int.to_string(summary.passed)
-    <> " passed, "
-    <> int.to_string(summary.failed)
-    <> " failed, "
-    <> int.to_string(summary.invalid)
-    <> " invalid, "
-    <> int.to_string(summary.exempted)
-    <> " exempted, "
-    <> int.to_string(summary.skipped_merge + summary.skipped_bot)
-    <> " skipped."
+fn summary_heading_h1(has_failures: Bool) -> String {
+  use <- bool.guard(has_failures, return: "❌ DCO Check Failed")
 
-  let elements = case summary.truncated {
-    True ->
-      elements
-      |> summary.raw(
-        "⚠ Evaluated "
-        <> int.to_string(summary.evaluated)
-        <> " of "
-        <> int.to_string(summary.total_commits)
-        <> " commits (GitHub API limit; not paginated).",
-      )
-      |> summary.eol
-    False -> elements
-  }
+  "✅ DCO Check Passed"
+}
+
+fn summary_truncated(
+  elements: List(SummaryElement),
+  dco_summary: DcoSummary,
+) -> List(SummaryElement) {
+  use <- bool.guard(dco_summary.truncated |> bool.negate, return: elements)
+
+  elements
+  |> summary.raw(
+    "⚠️  Evaluated "
+    <> int.to_string(dco_summary.evaluated)
+    <> " of "
+    <> int.to_string(dco_summary.total_commits)
+    <> " commits (GitHub API limit).",
+  )
+  |> summary.eol
+}
+
+fn failure_records(records: List(DcoRecord)) -> List(DcoRecord) {
+  list.filter(records, fn(r) {
+    case r.disposition {
+      NoSignoffs | NoMatch(..) | InvalidCommit -> True
+      _ -> False
+    }
+  })
+}
+
+fn summary_failures(
+  elements: List(SummaryElement),
+  records: List(DcoRecord),
+) -> List(SummaryElement) {
+  let failures = failure_records(records)
+
+  use <- bool.guard(failures == [], return: elements)
+
+  let table =
+    summary.new_table()
+    |> summary.header_row(["Commit", "Subject", "Problem"])
+
+  let table =
+    list.take(failures, 20)
+    |> list.fold(table, fn(t, r) {
+      summary.row(t, [
+        dco_check.format_sha(r.sha),
+        r.subject,
+        format_disposition(r),
+      ])
+    })
 
   let elements =
     elements
-    |> summary.raw(summary_line)
-    |> summary.eol
+    |> summary.h2("Issues")
+    |> summary.table(table)
 
-  let failures =
-    list.filter(records, fn(r) {
-      case r.disposition {
-        NoSignoffs | NoMatch(..) | InvalidCommit -> True
-        _ -> False
-      }
+  use <- bool.guard(list.length(failures) <= 20, return: elements)
+
+  elements
+  |> summary.raw(
+    "…and "
+    <> int.to_string(list.length(failures) - 20)
+    <> " more. Consider `git rebase --signoff`.",
+  )
+  |> summary.eol
+}
+
+fn summary_success_groups(
+  elements: List(SummaryElement),
+  records: List(DcoRecord),
+) -> List(SummaryElement) {
+  let groups = build_success_groups(records:, counts: dict.new(), order: [])
+
+  use <- bool.guard(groups == [], return: elements)
+
+  let table =
+    summary.new_table()
+    |> summary.header_row(["Identity", "Commits"])
+
+  let table =
+    list.fold(groups, table, fn(t, g) {
+      summary.row(t, [
+        g.identity,
+        int.to_string(g.count) <> " (" <> g.note <> ")",
+      ])
     })
 
-  let elements = case failures {
-    [] -> elements
-    _ -> {
-      let capped = list.take(failures, 20)
-      let table =
-        summary.new_table()
-        |> summary.header_row(["Commit", "Reason"])
-
-      let table =
-        list.fold(capped, table, fn(t, r) {
-          summary.row(t, [dco_check.format_sha(r.sha), format_disposition(r)])
-        })
-
-      let elements =
-        elements
-        |> summary.h2("Failed")
-        |> summary.table(table)
-
-      case list.length(failures) > 20 {
-        True ->
-          elements
-          |> summary.raw(
-            "and "
-            <> int.to_string(list.length(failures) - 20)
-            <> " more commits failed. Consider `git rebase --signoff`.",
-          )
-          |> summary.eol
-        False -> elements
-      }
-    }
-  }
-
-  summary.overwrite(elements)
+  elements
+  |> summary.h2("Commits")
+  |> summary.table(table)
 }
 
 fn build_failure_message(summary: DcoSummary) -> String {
@@ -380,9 +514,11 @@ fn format_disposition(record: DcoRecord) -> String {
     NoSignoffs -> "No Signed-off-by trailer found."
     NoMatch(expected:, found:) ->
       "Expected "
-      <> list.map(expected, dco_check.format_signoff) |> string.join(" or ")
+      <> list.map(expected, dco_check.format_signoff_masked)
+      |> string.join(" or ")
       <> ", found "
-      <> list.map(found, dco_check.format_signoff) |> string.join(", ")
+      <> list.map(found, dco_check.format_signoff_masked)
+      |> string.join(", ")
     InvalidCommit -> "No valid commit identity."
     _ -> ""
   }
