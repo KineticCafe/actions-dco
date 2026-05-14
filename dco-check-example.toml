@@ -2,7 +2,7 @@
 #
 # Use inline via the `config` input:
 #
-#   - uses: KineticCafe/actions-dco@v3.0.0
+#   - uses: KineticCafe/actions-dco@v3.1.0
 #     with:
 #       config: |
 #         exempt-authors = ["@example.com"]

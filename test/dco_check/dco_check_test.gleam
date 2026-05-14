@@ -145,6 +145,7 @@ pub fn find_author_exemption_no_match_test() {
     types.DcoRecord(
       sha: "abc",
       url: "http://x",
+      subject: "test",
       author: Some(github_types.GitUser(
         email: Some("alice@example.com"),
         name: Some("Alice"),
@@ -167,6 +168,7 @@ pub fn find_author_exemption_exact_match_test() {
     types.DcoRecord(
       sha: "abc",
       url: "http://x",
+      subject: "test",
       author: Some(github_types.GitUser(
         email: Some("alice@example.com"),
         name: Some("Alice"),
@@ -193,6 +195,7 @@ pub fn find_author_exemption_domain_match_test() {
     types.DcoRecord(
       sha: "abc",
       url: "http://x",
+      subject: "test",
       author: Some(github_types.GitUser(
         email: Some("alice@corp.dev"),
         name: Some("Alice"),
@@ -208,4 +211,33 @@ pub fn find_author_exemption_domain_match_test() {
     take.with_stdout(fn() {
       dco_check.find_author_exemption(record:, exemptions:)
     }).0
+}
+
+// --- mask_email ---
+
+pub fn mask_email_normal_test() {
+  assert dco_check.mask_email("alice@example.com") == "al…@example.com"
+}
+
+pub fn mask_email_short_local_one_char_test() {
+  assert dco_check.mask_email("a@example.net") == "a…@example.net"
+}
+
+pub fn mask_email_short_local_two_chars_test() {
+  assert dco_check.mask_email("ab@example.net") == "ab…@example.net"
+}
+
+pub fn mask_email_long_local_test() {
+  assert dco_check.mask_email("verylongname@domain.org") == "ve…@domain.org"
+}
+
+pub fn mask_email_no_at_test() {
+  assert dco_check.mask_email("notanemail") == "…"
+}
+
+pub fn mask_email_noreply_test() {
+  assert dco_check.mask_email(
+      "49699333+dependabot[bot]@users.noreply.github.com",
+    )
+    == "49…@users.noreply.github.com"
 }

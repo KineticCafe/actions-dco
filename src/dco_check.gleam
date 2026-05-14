@@ -15,6 +15,7 @@ import dco_check/internal/trailers
 import dco_check/types.{
   type DcoRecord, type DcoSummary, type ExemptionMatch, type Identity,
 } as t
+import gleam/bool
 import gleam/dict
 import gleam/int
 import gleam/list
@@ -25,7 +26,7 @@ import pontil
 
 pub const package_name = "KineticCafe/dco-check"
 
-pub const package_version = "3.0.0"
+pub const package_version = "3.1.0"
 
 /// Evaluate DCO status for a list of commits.
 ///
@@ -52,10 +53,16 @@ pub fn get_dco_status(
 
   let count = list.length(commits)
 
+  pontil.debug("get_dco_status: starting evaluate_commit map")
+
   let records =
     list.map(commits, fn(commit) { evaluate_commit(commit:, url:, config:) })
 
+  pontil.debug("get_dco_status: evaluate_commit map complete, building summary")
+
   let summary = build_summary(records:, total:, count:)
+
+  pontil.debug("get_dco_status: done")
 
   #(summary, records)
 }
@@ -68,6 +75,8 @@ fn evaluate_commit(
 ) -> DcoRecord {
   let git_commit = commit.commit
   let sha = commit.sha
+
+  pontil.debug("evaluate_commit: start " <> sha)
 
   let author = case git_commit.author {
     Some(github_types.CommitCommitAuthor(user)) -> user
@@ -83,22 +92,28 @@ fn evaluate_commit(
     t.DcoRecord(
       sha:,
       url: url <> "/commits/" <> sha,
+      subject: commit_subject(git_commit.message),
       author:,
       committer:,
       identities: resolve_identities([author, committer]),
       disposition: t.Unprocessed,
     )
 
+  // Parse trailers once for the entire pipeline.
+  let parsed_trailers =
+    trailers.parse(git_commit.message, trailer_mode(config.trailer_parsing))
+
+  pontil.debug("evaluate_commit: entering pipeline")
+
   use record <- check_merge(commit, record)
-  use record <- check_bot(commit, record, config)
+  use record <- check_bot(commit, record, config, parsed_trailers)
   use record <- check_identities(record)
 
   check_signoffs(
-    message: git_commit.message,
+    record:,
+    trailers: parsed_trailers,
     exemptions: config.exempt_authors,
     aliases: config.aliases,
-    trailer_mode: trailer_mode(config.trailer_parsing),
-    record:,
   )
 }
 
@@ -123,6 +138,7 @@ fn check_bot(
   commit: github_types.Commit,
   record: DcoRecord,
   config: Config,
+  parsed_trailers: List(#(String, String)),
   continue: fn(DcoRecord) -> DcoRecord,
 ) -> DcoRecord {
   case commit.author {
@@ -146,9 +162,9 @@ fn check_bot(
         }
         True ->
           check_bot_ai(
-            commit:,
             record:,
             config:,
+            parsed_trailers:,
             login:,
             name:,
             email:,
@@ -161,17 +177,22 @@ fn check_bot(
 }
 
 fn check_bot_ai(
-  commit commit: github_types.Commit,
   record record: DcoRecord,
   config config: Config,
+  parsed_trailers parsed_trailers: List(#(String, String)),
   login login: String,
   name name: Option(String),
   email email: Option(String),
   continue continue: fn(DcoRecord) -> DcoRecord,
 ) -> DcoRecord {
-  // Check AI trailer revocation if enabled
-  case config.ai_detection, bots.has_ai_attribution(commit.commit.message) {
-    True, True -> {
+  // Short-circuit: skip AI check entirely when disabled
+  use <- bool.guard(bool.negate(config.ai_detection), return: {
+    pontil.debug("commit " <> record.sha <> ": skipping exempt bot " <> login)
+    t.DcoRecord(..record, disposition: t.BotCommit(login:, name:, email:))
+  })
+
+  case bots.has_ai_attribution(parsed_trailers) {
+    True -> {
       pontil.warning(
         "commit "
         <> record.sha
@@ -181,11 +202,7 @@ fn check_bot_ai(
       )
       continue(record)
     }
-    True, False -> {
-      pontil.debug("commit " <> record.sha <> ": skipping exempt bot " <> login)
-      t.DcoRecord(..record, disposition: t.BotCommit(login:, name:, email:))
-    }
-    False, _ -> {
+    False -> {
       pontil.debug("commit " <> record.sha <> ": skipping exempt bot " <> login)
       t.DcoRecord(..record, disposition: t.BotCommit(login:, name:, email:))
     }
@@ -210,15 +227,14 @@ fn check_identities(
   }
 }
 
-/// Parse signoffs and match against identities.
+/// Match signoffs from pre-parsed trailers against identities.
 fn check_signoffs(
-  message message: String,
+  record record: DcoRecord,
+  trailers parsed_trailers: List(#(String, String)),
   exemptions exemptions: Exemptions,
   aliases aliases: dict.Dict(String, List(String)),
-  trailer_mode mode: trailers.Mode,
-  record record: DcoRecord,
 ) -> DcoRecord {
-  case get_commit_signoffs(sha: record.sha, message:, mode:) {
+  case get_commit_signoffs(sha: record.sha, trailers: parsed_trailers) {
     [] -> check_exemption(record:, exemptions:)
     signoffs -> match_signoffs(record:, signoffs:, aliases:)
   }
@@ -287,15 +303,13 @@ fn identity_matches(
   name_match && email_match
 }
 
-/// Parse Signed-off-by trailers from a commit message.
-/// Only returns complete (name + email) signoffs; logs warnings for invalid ones.
+/// Extract valid Signed-off-by identities from pre-parsed trailers.
 fn get_commit_signoffs(
   sha sha: String,
-  message message: String,
-  mode mode: trailers.Mode,
+  trailers parsed_trailers: List(#(String, String)),
 ) -> List(Identity) {
   let signoffs =
-    trailers.parse(message, mode)
+    parsed_trailers
     |> list.filter_map(fn(trailer) { validate_signoff(sha:, trailer:) })
 
   pontil.debug(
@@ -470,8 +484,39 @@ pub fn format_signoff_html(identity: Identity) -> String {
   identity |> format_signoff |> houdini.escape
 }
 
+/// Format a signoff identity with the email local part masked for public display.
+pub fn format_signoff_masked(identity: Identity) -> String {
+  "\"" <> identity.name <> " <" <> mask_email(identity.email) <> ">\""
+}
+
+/// Mask the local part of an email: "alice@example.com" -> "al…@example.com"
+pub fn mask_email(email: String) -> String {
+  case string.split_once(email, "@") {
+    Ok(#(local, domain)) -> {
+      let len = string.length(local)
+      case len {
+        1 | 2 -> local <> "…@" <> domain
+        _ -> string.slice(local, 0, 2) <> "…@" <> domain
+      }
+    }
+    Error(Nil) -> "…"
+  }
+}
+
 pub fn format_sha(sha: String) -> String {
   string.slice(sha, 0, 12)
+}
+
+/// Extract the subject (first line) from a commit message, truncated to 50 chars.
+fn commit_subject(message: String) -> String {
+  let subject = case string.split_once(message, "\n") {
+    Ok(#(first, _)) -> first
+    Error(Nil) -> message
+  }
+  case string.length(subject) > 50 {
+    True -> string.slice(subject, 0, 50) <> "…"
+    False -> subject
+  }
 }
 
 fn trailer_mode(parsing: config.TrailerParsing) -> trailers.Mode {

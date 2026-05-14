@@ -7,7 +7,6 @@
 //// surface.
 
 import dco_check/config
-import dco_check/internal/trailers
 import gleam/list
 import gleam/string
 
@@ -65,11 +64,9 @@ pub fn bots_for_category(category: config.BotCategory) -> List(String) {
   }
 }
 
-/// Check if a commit message contains AI attribution trailers.
+/// Check if parsed trailers contain AI attribution.
 /// Returns True if any AI trailer with a matching AI pattern is found.
-pub fn has_ai_attribution(message: String) -> Bool {
-  let parsed = trailers.parse(message, trailers.Lenient)
-
+pub fn has_ai_attribution(parsed: List(#(String, String))) -> Bool {
   list.any(parsed, fn(trailer) {
     let #(key, value) = trailer
     let lower_value = string.lowercase(value)

@@ -93,24 +93,38 @@ pub fn parse_identity(
 }
 
 /// Try to parse a paragraph as a trailer block. Returns Ok(list) if every logical line
-/// (after folding) is a valid trailer, Error(Nil) otherwise.
+/// (after folding) is a valid trailer, Error(Nil) otherwise. Bails on first non-trailer.
 fn parse_block(block: String) -> Result(List(#(String, String)), Nil) {
   let lines = string.split(block, "\n")
-  let folded = fold_continuation_lines(lines, [])
+  // Quick reject: if the first non-continuation line isn't a trailer, skip the block.
+  case lines {
+    [] -> Error(Nil)
+    [first, ..] ->
+      case parse_trailer_line(first) {
+        None -> Error(Nil)
+        Some(_) ->
+          fold_continuation_lines(lines, [])
+          |> parse_all_trailers([])
+      }
+  }
+}
 
-  let results = list.map(folded, parse_trailer_line)
-
-  case list.all(results, fn(r) { option.is_some(r) }) {
-    True ->
-      Ok(
-        list.filter_map(results, fn(r) {
-          case r {
-            Some(t) -> Ok(t)
-            None -> Error(Nil)
-          }
-        }),
-      )
-    False -> Error(Nil)
+/// Parse all lines as trailers, bailing immediately on the first failure.
+fn parse_all_trailers(
+  lines: List(String),
+  acc: List(#(String, String)),
+) -> Result(List(#(String, String)), Nil) {
+  case lines {
+    [] ->
+      case acc {
+        [] -> Error(Nil)
+        _ -> Ok(list.reverse(acc))
+      }
+    [line, ..rest] ->
+      case parse_trailer_line(line) {
+        Some(trailer) -> parse_all_trailers(rest, [trailer, ..acc])
+        None -> Error(Nil)
+      }
   }
 }
 
@@ -168,47 +182,41 @@ fn is_continuation(line: String) -> Bool {
 
 /// Parse a single (already-folded) trailer line into (lowercase-key, trimmed-value).
 fn parse_trailer_line(line: String) -> Option(#(String, String)) {
-  case scan_key(line, 0) {
-    Ok(#(key, rest)) -> {
-      case string.first(rest) {
-        Ok(":") -> {
-          let value =
-            rest
-            |> string.drop_start(1)
-            |> string.trim
-          Some(#(string.lowercase(key), value))
-        }
-        _ -> None
-      }
+  use <- bool.guard(string.contains(line, ":") |> bool.negate, return: None)
+
+  let graphemes = string.to_graphemes(line)
+  case scan_key_graphemes(graphemes, []) {
+    Ok(#(key, [":", ..rest])) -> {
+      let value = string.join(rest, "") |> string.trim
+      Some(#(string.lowercase(key), value))
     }
-    Error(Nil) -> None
+    _ -> None
   }
 }
 
-/// Scan a trailer key: first char must be alpha, rest alphanumeric or hyphen, no
-/// whitespace allowed.
-fn scan_key(input: String, len: Int) -> Result(#(String, String), Nil) {
-  case string.first(input |> string.drop_start(len)) {
-    Error(Nil) if len == 0 -> Error(Nil)
-    // End of string
-    Error(Nil) ->
-      Ok(#(string.slice(input, 0, len), string.drop_start(input, len)))
-
-    Ok(ch) if len == 0 ->
-      // First char must be alpha
+/// Scan a trailer key from a grapheme list. Returns Ok(#(key, remaining)) or Error.
+/// First char must be alpha, rest alphanumeric or hyphen.
+fn scan_key_graphemes(
+  graphemes: List(String),
+  acc: List(String),
+) -> Result(#(String, List(String)), Nil) {
+  case graphemes, acc {
+    // Empty input, no key accumulated
+    [], [] -> Error(Nil)
+    // End of input with key accumulated
+    [], _ -> Ok(#(string.join(list.reverse(acc), ""), []))
+    // First char must be alpha
+    [ch, ..rest], [] ->
       case is_alpha(ch) {
-        True -> scan_key(input, 1)
+        True -> scan_key_graphemes(rest, [ch])
         False -> Error(Nil)
       }
-
-    Ok(ch) -> {
+    // Subsequent chars: key chars continue, anything else terminates
+    [ch, ..rest], _ ->
       case is_key_char(ch) {
-        True -> scan_key(input, len + 1)
-        False if len == 0 -> Error(Nil)
-        False ->
-          Ok(#(string.slice(input, 0, len), string.drop_start(input, len)))
+        True -> scan_key_graphemes(rest, [ch, ..acc])
+        False -> Ok(#(string.join(list.reverse(acc), ""), graphemes))
       }
-    }
   }
 }
 
