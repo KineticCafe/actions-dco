@@ -241,3 +241,46 @@ pub fn mask_email_noreply_test() {
     )
     == "49…@users.noreply.github.com"
 }
+
+// --- Regression: null top-level author/committer (GitHub issue #216) ---
+// When a commit's author email is not linked to any GitHub account,
+// the compare API returns "author": null / "committer": null at the
+// top level. This must decode and process successfully.
+
+fn load_null_author_fixture() {
+  let assert Ok(json) = simplifile.read("test/fixtures/null_author_commits.json")
+  let decoder = {
+    use html_url <- d.field("html_url", d.string)
+    use total_commits <- d.field("total_commits", d.int)
+    use commits <- d.field("commits", decode.commit_decoder_list())
+    d.success(#(html_url, total_commits, commits))
+  }
+  let assert Ok(result) = json.parse(json, decoder)
+  result
+}
+
+pub fn null_author_commits_decode_test() {
+  // The fixture must decode without error — this was the original crash.
+  let #(_url, _total, commits) = load_null_author_fixture()
+  assert list.length(commits) == 2
+}
+
+pub fn null_author_signed_commit_passes_test() {
+  let #(url, total, commits) = load_null_author_fixture()
+  let #(_summary, records) = run_dco(commits, url, config.default(), total)
+
+  // First commit has a valid Signed-off-by matching the git identity.
+  let assert [record, ..] = records
+  assert record.disposition == types.Passed
+}
+
+pub fn null_author_unsigned_commit_fails_test() {
+  let #(url, total, commits) = load_null_author_fixture()
+  let #(summary, records) = run_dco(commits, url, config.default(), total)
+
+  // Second commit has no sign-off trailer.
+  let assert [_, record] = records
+  assert record.disposition == types.NoSignoffs
+  assert summary.passed == 1
+  assert summary.failed == 1
+}
