@@ -142,13 +142,13 @@ fn check_bot(
   continue: fn(DcoRecord) -> DcoRecord,
 ) -> DcoRecord {
   case commit.author {
-    github_types.CommitAuthorSimpleUser(github_types.SimpleUser(
+    Some(github_types.CommitAuthorSimpleUser(github_types.SimpleUser(
       type_: "Bot",
       login:,
       name:,
       email:,
       ..,
-    )) -> {
+    ))) -> {
       case bots.is_bot_exempt(login, config.bots) {
         False -> {
           pontil.debug(

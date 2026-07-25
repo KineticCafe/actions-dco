@@ -1,5 +1,9 @@
 # KineticCafe/actions-dco Changelog
 
+## 3.1.1 / 2026-07-25
+
+- Resolved [#216][issue-216] with a fix to the OpenAPI generator `oaspec`.
+
 ## 3.1.0 / 2026-05-15
 
 - Reshaped the sign-off summary written to the action and optionally as a commit
@@ -193,3 +197,4 @@ Pinning to the specific tag reference is strongly recommended.
 
 [issue-169]: https://github.com/KineticCafe/actions-dco/issues/169
 [issue-198]: https://github.com/KineticCafe/actions-dco/issues/198
+[issue-216]: https://github.com/KineticCafe/actions-dco/issues/216
