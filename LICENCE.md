@@ -1,11 +1,15 @@
 # Licence
 
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+
 @KineticCafe/actions-dco is copyright © 2023-2026 Kinetic Commerce, Austin
 Ziegler, and contributors under the
 [Apache License, version 2.0][apache-license-20], except:
 
 - The copies of the Apache License and the Developer Certificate of Origin in
   `licenses/`.
+
+- SPDX Licence: [Apache-2.0][apache-2]
 
 ## Developer Certificate of Origin
 
@@ -25,5 +29,6 @@ The `Signed-off-by` line can be automatically added by git with the `-s` or
 git commit --signoff
 ```
 
+[apache-2]: https://spdx.org/licenses/Apache-2.0.html
 [apache-license-20]: licenses/APACHE-2.0.txt
 [dco]: licenses/dco.txt
