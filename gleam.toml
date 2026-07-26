@@ -1,5 +1,5 @@
 name = "dco_check"
-version = "3.1.0"
+version = "3.2.0"
 target = "javascript"
 
 description = "Enforce Developer Certificate of Origin (DCO) sign-off on Pull Requests"

@@ -188,7 +188,8 @@ pub fn default_branch_standard_config_parses_test() {
     config.parse_default_branch_config(
       "exempt-authors = [\"@example.com\"]\ncomment = true",
     )
-  assert cfg.exempt_authors == Exemptions(exact: [], ends_with: ["@example.com"])
+  assert cfg.exempt_authors
+    == Exemptions(exact: [], ends_with: ["@example.com"])
   assert cfg.comment == True
 }
 
@@ -202,7 +203,9 @@ pub fn default_branch_ref_only_returns_ref_config_test() {
 
 pub fn default_branch_ref_not_https_errors_test() {
   let assert Error(_) =
-    config.parse_default_branch_config("ref = \"http://example.com/config.toml\"")
+    config.parse_default_branch_config(
+      "ref = \"http://example.com/config.toml\"",
+    )
 }
 
 pub fn default_branch_ref_with_other_keys_errors_test() {
@@ -213,8 +216,7 @@ pub fn default_branch_ref_with_other_keys_errors_test() {
 }
 
 pub fn default_branch_ref_not_string_errors_test() {
-  let assert Error(_) =
-    config.parse_default_branch_config("ref = 42")
+  let assert Error(_) = config.parse_default_branch_config("ref = 42")
 }
 
 pub fn default_branch_ref_rejected_in_standard_config_test() {
