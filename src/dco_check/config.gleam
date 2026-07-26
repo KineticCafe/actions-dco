@@ -4,6 +4,7 @@
 //// consumes the same type.
 
 import dco_check/error.{type DcoCheckError}
+import gleam/bool
 import gleam/dict
 import gleam/list
 import gleam/result
@@ -80,11 +81,76 @@ pub fn load(path: String) -> Result(Config, DcoCheckError) {
 }
 
 /// Parse a TOML string into Config.
+/// Rejects configs containing a 'ref' key — that is only valid as the sole
+/// key in a default branch config file (handled by parse_default_branch_config).
 pub fn parse(content: String) -> Result(Config, DcoCheckError) {
   use doc <- result.try(
     tom.parse(content) |> result.map_error(error.ConfigParseError),
   )
 
+  // 'ref' is never valid in a standard config
+  case dict.has_key(doc, "ref") {
+    True ->
+      Error(error.ConfigInvalidRef(
+        "'ref' is not a valid configuration key. A 'ref' pointing to a remote config is only valid as the sole key in a default branch config file (.github/dco-check.toml or .dco-check.toml).",
+      ))
+    False -> parse_doc(doc)
+  }
+}
+
+/// Result of parsing a default branch config file.
+/// It's either a direct standard config, or a ref URL to fetch.
+pub type DefaultBranchConfig {
+  DirectConfig(Config)
+  RefConfig(url: String)
+}
+
+/// Parse a default branch config file. This may be:
+/// - A ref-only file: TOML with a single key 'ref' whose value is an HTTPS URL
+/// - A standard config file (which must NOT contain 'ref')
+pub fn parse_default_branch_config(
+  content: String,
+) -> Result(DefaultBranchConfig, DcoCheckError) {
+  use doc <- result.try(
+    tom.parse(content) |> result.map_error(error.ConfigParseError),
+  )
+
+  case dict.size(doc), dict.has_key(doc, "ref") {
+    0, _ -> Ok(DirectConfig(default()))
+    1, True -> {
+      // Single key 'ref' — must be a string HTTPS URL
+      case tom.get_string(doc, ["ref"]) {
+        Ok(url) -> validate_ref_url(url)
+        Error(_) ->
+          Error(error.ConfigInvalidRef(
+            "'ref' must be a string containing an HTTPS URL.",
+          ))
+      }
+    }
+    _, True ->
+      Error(error.ConfigInvalidRef(
+        "'ref' must be the only key in a config reference file. Either use 'ref' alone to point to a remote config, or provide a full configuration without 'ref'.",
+      ))
+    _, False -> {
+      use cfg <- result.try(parse_doc(doc))
+      Ok(DirectConfig(cfg))
+    }
+  }
+}
+
+/// Validate that a ref URL is HTTPS.
+fn validate_ref_url(url: String) -> Result(DefaultBranchConfig, DcoCheckError) {
+  use <- bool.guard(
+    string.starts_with(url, "https://"),
+    return: Ok(RefConfig(url:)),
+  )
+  Error(error.ConfigInvalidRef("'ref' must be an HTTPS URL, got: " <> url))
+}
+
+/// Internal: parse a validated TOML document into Config.
+fn parse_doc(
+  doc: dict.Dict(String, tom.Toml),
+) -> Result(Config, DcoCheckError) {
   let exempt_authors = parse_exempt_authors(doc)
   let bots = parse_bot_policy(doc)
   let ai_detection =

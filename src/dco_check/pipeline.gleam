@@ -12,13 +12,16 @@ import dco_check/internal/github/decode
 import dco_check/internal/github/response_types
 import dco_check/internal/github/types as github_types
 import dco_check/types.{type DcoRecord, type DcoSummary}
+import gleam/fetch as gleam_fetch
+import gleam/http/request as http_request
+import gleam/http/response.{type Response}
 import gleam/int
 import gleam/javascript/promise.{type Promise}
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
-import oaspec/fetch
+import oaspec/fetch as oaspec_fetch
 import oaspec/transport
 import pontil
 
@@ -54,7 +57,7 @@ pub fn fetch_comparison(
     page: None,
     per_page: None,
   )
-  |> fetch.to_promise
+  |> oaspec_fetch.to_promise
   |> promise.map(fn(r) { result.map_error(r, error.TransportError) })
 }
 
@@ -83,8 +86,7 @@ pub fn process_response(
             total: comparison.total_commits,
           ))
         }
-        Error(err) ->
-          Error(error.ResponseDecodeError(err))
+        Error(err) -> Error(error.ResponseDecodeError(err))
       }
     }
     response_types.ReposCompareCommitsResponseNotFound(err) ->
@@ -133,7 +135,7 @@ pub fn find_existing_comment(
     per_page: Some(100),
     page: None,
   )
-  |> fetch.to_promise
+  |> oaspec_fetch.to_promise
   |> promise.map(fn(r) {
     case r {
       Ok(response_types.IssuesListCommentsResponseOk(comments, _headers)) ->
@@ -165,7 +167,7 @@ pub fn upsert_comment(
         comment_id:,
         body: github_types.IssuesUpdateCommentRequest(body: full_body),
       )
-      |> fetch.to_promise
+      |> oaspec_fetch.to_promise
       |> promise.map(fn(r) {
         case r {
           Ok(response_types.IssuesUpdateCommentResponseOk(_)) -> Ok(Nil)
@@ -184,7 +186,7 @@ pub fn upsert_comment(
         issue_number:,
         body: github_types.IssuesCreateCommentRequest(body: full_body),
       )
-      |> fetch.to_promise
+      |> oaspec_fetch.to_promise
       |> promise.map(fn(r) {
         case r {
           Ok(response_types.IssuesCreateCommentResponseCreated(_, _)) -> Ok(Nil)
@@ -217,5 +219,129 @@ fn find_comment_with_marker(
   {
     Ok(comment) -> Some(comment.id)
     Error(Nil) -> None
+  }
+}
+
+/// Fetch the default branch config file, trying .github/dco-check.toml then .dco-check.toml.
+/// Returns None if neither file exists (404 on both). Returns Error if the file exists
+/// but cannot be decoded or parsed.
+pub fn fetch_default_branch_config(
+  api_url api_url: String,
+  token token: String,
+  owner owner: String,
+  repo repo: String,
+) -> Promise(Result(Option(config.DefaultBranchConfig), DcoCheckError)) {
+  fetch_config_file(
+    api_url:,
+    token:,
+    owner:,
+    repo:,
+    path: ".github/dco-check.toml",
+  )
+  |> promise.try_await(fn(result) {
+    case result {
+      Some(cfg) -> promise.resolve(Ok(Some(cfg)))
+      None ->
+        fetch_config_file(
+          api_url:,
+          token:,
+          owner:,
+          repo:,
+          path: ".dco-check.toml",
+        )
+    }
+  })
+}
+
+/// Fetch a single config file path from the default branch using the raw content media
+/// type. Returns Ok(None) on 404, Ok(Some(config)) on success, Error on other failures.
+fn fetch_config_file(
+  api_url api_url: String,
+  token token: String,
+  owner owner: String,
+  repo repo: String,
+  path path: String,
+) -> Promise(Result(Option(config.DefaultBranchConfig), DcoCheckError)) {
+  let url = api_url <> "/repos/" <> owner <> "/" <> repo <> "/contents/" <> path
+
+  use req <- pontil.try_sync(
+    http_request.to(url)
+    |> result.replace_error(error.ConfigRefError(
+      "Invalid URL for config file: " <> url,
+    )),
+  )
+
+  let req =
+    req
+    |> http_request.set_header("accept", "application/vnd.github.raw+json")
+    |> http_request.set_header("authorization", "Bearer " <> token)
+
+  gleam_fetch.send(req)
+  |> promise.try_await(fn(resp) { gleam_fetch.read_text_body(resp) })
+  |> promise.map(fn(r) {
+    r
+    |> result.replace_error(error.ConfigRefError(
+      "Network error fetching " <> path <> " from default branch",
+    ))
+    |> result.try(fn(resp) {
+      case resp.status {
+        200 ->
+          case config.parse_default_branch_config(resp.body) {
+            Ok(cfg) -> Ok(Some(cfg))
+            Error(err) -> Error(err)
+          }
+        404 -> Ok(None)
+        403 ->
+          Error(error.ConfigRefError(
+            "Forbidden reading " <> path <> " from default branch",
+          ))
+        status ->
+          Error(error.ConfigRefError(
+            path <> ": unexpected HTTP " <> int.to_string(status),
+          ))
+      }
+    })
+  })
+}
+
+/// Fetch a remote config via a ref URL. Sends the auth token only if the URL matches the
+/// API base URL. For non-API URLs, uses gleam/fetch directly without any authentication.
+pub fn fetch_ref_config(
+  api_url api_url: String,
+  token token: String,
+  url url: String,
+) -> Promise(Result(Config, DcoCheckError)) {
+  use req <- pontil.try_sync(
+    http_request.to(url)
+    |> result.replace_error(error.ConfigRefError("Invalid ref URL: " <> url)),
+  )
+
+  let req = case string.starts_with(url, api_url) {
+    True -> http_request.set_header(req, "authorization", "Bearer " <> token)
+    False -> req
+  }
+
+  gleam_fetch.send(req)
+  |> promise.try_await(fn(resp) { gleam_fetch.read_text_body(resp) })
+  |> promise.map(fn(r) {
+    r
+    |> result.replace_error(error.ConfigRefError(
+      "Network error fetching ref: " <> url,
+    ))
+    |> result.try(fn(resp) { parse_ref_text_response(resp, url) })
+  })
+}
+
+fn parse_ref_text_response(
+  resp: Response(String),
+  url: String,
+) -> Result(Config, DcoCheckError) {
+  case resp.status {
+    200 -> config.parse(resp.body)
+    404 -> Error(error.ConfigRefError("ref URL not found (404): " <> url))
+    _ ->
+      Error(error.ConfigRefError(
+        "ref URL returned HTTP " <> int.to_string(resp.status) <> ": " <> url,
+      ))
   }
 }

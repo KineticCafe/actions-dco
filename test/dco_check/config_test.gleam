@@ -174,3 +174,59 @@ pub fn parse_ai_detection_default_false_test() {
   let assert Ok(cfg) = config.parse("")
   assert cfg.ai_detection == False
 }
+
+// --- default branch config parsing ---
+
+pub fn default_branch_empty_file_returns_defaults_test() {
+  let assert Ok(config.DirectConfig(cfg)) =
+    config.parse_default_branch_config("")
+  assert cfg == config.default()
+}
+
+pub fn default_branch_standard_config_parses_test() {
+  let assert Ok(config.DirectConfig(cfg)) =
+    config.parse_default_branch_config(
+      "exempt-authors = [\"@example.com\"]\ncomment = true",
+    )
+  assert cfg.exempt_authors == Exemptions(exact: [], ends_with: ["@example.com"])
+  assert cfg.comment == True
+}
+
+pub fn default_branch_ref_only_returns_ref_config_test() {
+  let assert Ok(config.RefConfig(url:)) =
+    config.parse_default_branch_config(
+      "ref = \"https://raw.github.com/org/repo/main/dco.toml\"",
+    )
+  assert url == "https://raw.github.com/org/repo/main/dco.toml"
+}
+
+pub fn default_branch_ref_not_https_errors_test() {
+  let assert Error(_) =
+    config.parse_default_branch_config("ref = \"http://example.com/config.toml\"")
+}
+
+pub fn default_branch_ref_with_other_keys_errors_test() {
+  let assert Error(_) =
+    config.parse_default_branch_config(
+      "ref = \"https://example.com/config.toml\"\ncomment = true",
+    )
+}
+
+pub fn default_branch_ref_not_string_errors_test() {
+  let assert Error(_) =
+    config.parse_default_branch_config("ref = 42")
+}
+
+pub fn default_branch_ref_rejected_in_standard_config_test() {
+  // config.parse (not parse_default_branch_config) must reject ref
+  let assert Error(_) =
+    config.parse(
+      "ref = \"https://example.com/config.toml\"\nexempt-authors = []",
+    )
+}
+
+pub fn standard_config_ref_only_also_rejected_test() {
+  // Even if ref is the only key, config.parse rejects it
+  let assert Error(_) =
+    config.parse("ref = \"https://example.com/config.toml\"")
+}

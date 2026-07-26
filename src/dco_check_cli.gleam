@@ -181,7 +181,7 @@ fn print_results(dco_summary: DcoSummary, records: List(DcoRecord)) -> Nil {
     }
   }
 
-  let groups = build_success_groups(records, dict.new(), [])
+  let groups = build_success_groups(records:, counts: dict.new(), order: [])
 
   let elements = case groups {
     [] -> elements
@@ -224,9 +224,9 @@ fn failure_records(records: List(DcoRecord)) -> List(DcoRecord) {
 }
 
 fn build_success_groups(
-  records: List(DcoRecord),
-  counts: dict.Dict(String, Int),
-  order: List(SuccessGroup),
+  records records: List(DcoRecord),
+  counts counts: dict.Dict(String, Int),
+  order order: List(SuccessGroup),
 ) -> List(SuccessGroup) {
   case records {
     [] ->
@@ -239,19 +239,24 @@ fn build_success_groups(
         SuccessGroup(..g, count:)
       })
     [record, ..rest] -> {
-      case success_group_for(record) {
-        Ok(group) -> {
-          let key = group.identity <> "|" <> group.note
-          let new_count = { dict.get(counts, key) |> result.unwrap(0) } + 1
-          let new_counts = dict.insert(counts, key, new_count)
-          let new_order = case dict.has_key(counts, key) {
-            True -> order
-            False -> [group, ..order]
-          }
-          build_success_groups(rest, new_counts, new_order)
+      success_group_for(record)
+      |> result.map(fn(group) {
+        let key = group.identity <> "|" <> group.note
+        let new_count = { dict.get(counts, key) |> result.unwrap(0) } + 1
+        let new_counts = dict.insert(counts, key, new_count)
+        let new_order = case dict.has_key(counts, key) {
+          True -> order
+          False -> [group, ..order]
         }
-        Error(Nil) -> build_success_groups(rest, counts, order)
-      }
+        build_success_groups(
+          records: rest,
+          counts: new_counts,
+          order: new_order,
+        )
+      })
+      |> result.lazy_unwrap(fn() {
+        build_success_groups(records: rest, counts:, order:)
+      })
     }
   }
 }

@@ -12,6 +12,36 @@ pub type ReposCompareCommitsResponse {
   )
 }
 
+pub type ReposGetContentResponse {
+  ReposGetContentResponseOk(String)
+  ReposGetContentResponseFound
+  ReposGetContentResponseNotModified
+  ReposGetContentResponseForbidden(types.BasicError)
+  ReposGetContentResponseNotFound(types.BasicError)
+}
+
+pub type ReposCreateOrUpdateFileContentsResponse {
+  ReposCreateOrUpdateFileContentsResponseOk(types.FileCommit)
+  ReposCreateOrUpdateFileContentsResponseCreated(types.FileCommit)
+  ReposCreateOrUpdateFileContentsResponseNotFound(types.BasicError)
+  ReposCreateOrUpdateFileContentsResponseConflict(
+    types.ReposCreateOrUpdateFileContentsResponseConflict,
+  )
+  ReposCreateOrUpdateFileContentsResponseUnprocessableEntity(
+    types.ValidationError,
+  )
+}
+
+pub type ReposDeleteFileResponse {
+  ReposDeleteFileResponseOk(types.FileCommit)
+  ReposDeleteFileResponseNotFound(types.BasicError)
+  ReposDeleteFileResponseConflict(types.BasicError)
+  ReposDeleteFileResponseUnprocessableEntity(types.ValidationError)
+  ReposDeleteFileResponseServiceUnavailable(
+    types.ReposDeleteFileResponseServiceUnavailable,
+  )
+}
+
 pub type IssuesGetCommentResponse {
   IssuesGetCommentResponseOk(types.IssueComment)
   IssuesGetCommentResponseNotFound(types.BasicError)
