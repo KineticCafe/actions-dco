@@ -83,10 +83,8 @@ pub fn process_response(
             total: comparison.total_commits,
           ))
         }
-        Error(_) ->
-          Error(error.ResponseDecodeError(
-            "Failed to decode commit comparison JSON",
-          ))
+        Error(err) ->
+          Error(error.ResponseDecodeError(err))
       }
     }
     response_types.ReposCompareCommitsResponseNotFound(err) ->

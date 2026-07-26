@@ -1,12 +1,16 @@
 import dco_check
 import dco_check/config
+import dco_check/error
 import dco_check/internal/github/decode
+import dco_check/internal/github/response_types
 import dco_check/internal/github/types as github_types
+import dco_check/pipeline
 import dco_check/types
 import gleam/dynamic/decode as d
 import gleam/json
 import gleam/list
 import gleam/option.{Some}
+import gleam/string
 import simplifile
 import take
 
@@ -283,4 +287,26 @@ pub fn null_author_unsigned_commit_fails_test() {
   assert record.disposition == types.NoSignoffs
   assert summary.passed == 1
   assert summary.failed == 1
+}
+
+// --- Regression: actionable decode error messages ---
+// When the commit comparison JSON has a malformed author object (e.g. missing
+// required fields on SimpleUser), the error message must tell the user what
+// field failed and where, not just "Failed to decode commit comparison JSON".
+
+pub fn malformed_author_produces_actionable_error_test() {
+  let assert Ok(json_body) =
+    simplifile.read("test/fixtures/malformed_author_commits.json")
+  let response = response_types.ReposCompareCommitsResponseOk(json_body)
+
+  let assert #(Error(err), _stdout) =
+    take.with_stdout(fn() {
+      pipeline.process_response(response:, config: config.default())
+    })
+  let message = error.describe_error(err)
+
+  // The error message must mention the decode failure context — not be a
+  // generic "Failed to decode" with no path info.
+  assert string.contains(message, "expected")
+  assert string.contains(message, "got")
 }

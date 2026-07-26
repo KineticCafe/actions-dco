@@ -14,10 +14,12 @@ import gleam/bool
 import gleam/dict
 import gleam/int
 import gleam/javascript/promise.{type Promise}
+import gleam/json
 import gleam/list
 import gleam/option
 import gleam/result
 import gleam/string
+import gleam/uri
 import houdini
 import oaspec/fetch
 import oaspec/transport
@@ -45,7 +47,10 @@ pub fn main() -> Nil {
           False -> pontil.info("DCO check passed.")
         }
       }
-      Error(err) -> pontil.set_failed(describe_error(err))
+      Error(err) -> {
+        write_error_summary(err)
+        pontil.set_failed(describe_error(err))
+      }
     }
   })
 
@@ -521,6 +526,74 @@ fn format_disposition(record: DcoRecord) -> String {
       |> string.join(", ")
     InvalidCommit -> "No valid commit identity."
     _ -> ""
+  }
+}
+
+/// Write a job summary for internal errors (decode failures, etc.) with
+/// guidance pointing the user to report the issue.
+fn write_error_summary(err: DcoCheckActionError) -> Nil {
+  case err {
+    DcoCheckError(error.ResponseDecodeError(decode_err)) -> {
+      let error_detail = error.describe_error(error.ResponseDecodeError(decode_err))
+      let search_query = decode_error_search_query(decode_err)
+      let search_url =
+        "https://github.com/KineticCafe/actions-dco/issues?q=is%3Aissue+"
+        <> uri.percent_encode(search_query)
+      let new_issue_url =
+        "https://github.com/KineticCafe/actions-dco/issues/new?title="
+        <> uri.percent_encode("Decode error: " <> search_query)
+
+      let elements =
+        summary.new()
+        |> summary.h1("❌ Internal Error")
+        |> summary.raw(
+          "The commit comparison response could not be decoded. "
+          <> "This is probably a bug in `actions-dco`, not a problem with your pull request.",
+        )
+        |> summary.eol
+        |> summary.eol
+        |> summary.raw("**Error:**")
+        |> summary.eol
+        |> summary.raw("```")
+        |> summary.eol
+        |> summary.raw(error_detail)
+        |> summary.eol
+        |> summary.raw("```")
+        |> summary.eol
+        |> summary.eol
+        |> summary.raw(
+          "[Search existing issues](" <> search_url <> ")"
+          <> " · "
+          <> "[File a new issue](" <> new_issue_url <> ")",
+        )
+        |> summary.eol
+
+      case summary.overwrite(elements) {
+        Ok(_) -> Nil
+        Error(_) -> Nil
+      }
+    }
+    _ -> Nil
+  }
+}
+
+/// Extract a short, searchable string from a decode error for issue deduplication.
+fn decode_error_search_query(err: json.DecodeError) -> String {
+  case err {
+    json.UnexpectedEndOfInput -> "unexpected end of input"
+    json.UnexpectedByte(byte) -> "unexpected byte " <> byte
+    json.UnexpectedSequence(seq) -> "unexpected sequence " <> seq
+    json.UnableToDecode(errors) ->
+      case errors {
+        [first, ..] -> {
+          let path = case first.path {
+            [] -> ""
+            segments -> " at " <> string.join(segments, ".")
+          }
+          "expected " <> first.expected <> ", got " <> first.found <> path
+        }
+        [] -> "unable to decode"
+      }
   }
 }
 
