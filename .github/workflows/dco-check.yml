@@ -33,6 +33,3 @@ jobs:
           persist-credentials: false
 
       - uses: ./
-        with:
-          config: |
-            comment = true
