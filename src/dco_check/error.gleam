@@ -14,6 +14,8 @@ pub type DcoCheckError {
   // Config errors
   ConfigParseError(tom.ParseError)
   ConfigFileError(path: String, reason: simplifile.FileError)
+  ConfigRefError(String)
+  ConfigInvalidRef(String)
   // Pipeline errors
   TransportError(client.ClientError)
   ApiNotFound(String)
@@ -34,6 +36,8 @@ pub fn describe_error(err: DcoCheckError) -> String {
       <> " ("
       <> simplifile.describe_error(reason)
       <> ")"
+    ConfigRefError(msg) -> "Config ref error: " <> msg
+    ConfigInvalidRef(msg) -> "Invalid config: " <> msg
     TransportError(client_err) -> describe_client_error(client_err)
     ApiNotFound(msg) -> "not found: " <> msg
     ApiServerError(msg) -> "server error: " <> msg
@@ -44,7 +48,8 @@ pub fn describe_error(err: DcoCheckError) -> String {
 
 fn describe_decode_error(err: json.DecodeError) -> String {
   case err {
-    json.UnexpectedEndOfInput -> "Failed to decode response: unexpected end of input"
+    json.UnexpectedEndOfInput ->
+      "Failed to decode response: unexpected end of input"
     json.UnexpectedByte(byte) ->
       "Failed to decode response: unexpected byte '" <> byte <> "'"
     json.UnexpectedSequence(seq) ->

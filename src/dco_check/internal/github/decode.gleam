@@ -8,6 +8,29 @@ import gleam/list
 import gleam/option.{type Option}
 import gleam/result
 
+pub fn content_directory_item_type_decoder() -> decode.Decoder(
+  types.ContentDirectoryItemType,
+) {
+  use value <- decode.then(decode.string)
+  case value {
+    "dir" -> decode.success(types.ContentDirectoryItemTypeDir)
+    "file" -> decode.success(types.ContentDirectoryItemTypeFile)
+    "submodule" -> decode.success(types.ContentDirectoryItemTypeSubmodule)
+    "symlink" -> decode.success(types.ContentDirectoryItemTypeSymlink)
+    _ ->
+      decode.failure(
+        types.ContentDirectoryItemTypeDir,
+        "ContentDirectoryItemType: unknown variant " <> value,
+      )
+  }
+}
+
+pub fn decode_content_directory_item_type(
+  json_string: String,
+) -> Result(types.ContentDirectoryItemType, json.DecodeError) {
+  json.parse(json_string, content_directory_item_type_decoder())
+}
+
 pub fn commit_comparison_status_decoder() -> decode.Decoder(
   types.CommitComparisonStatus,
 ) {
@@ -310,6 +333,721 @@ pub fn decode_commit_stats_list(
   json_string: String,
 ) -> Result(List(types.CommitStats), json.DecodeError) {
   json.parse(json_string, commit_stats_decoder_list())
+}
+
+pub fn content_directory_item_decoder() -> decode.Decoder(
+  types.ContentDirectoryItem,
+) {
+  use links <- decode.field("_links", content_directory_item_links_decoder())
+  use content <- decode.optional_field(
+    "content",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use download_url <- decode.field(
+    "download_url",
+    decode.optional(decode.string),
+  )
+  use git_url <- decode.field("git_url", decode.optional(decode.string))
+  use html_url <- decode.field("html_url", decode.optional(decode.string))
+  use name <- decode.field("name", decode.string)
+  use path <- decode.field("path", decode.string)
+  use sha <- decode.field("sha", decode.string)
+  use size <- decode.field("size", decode.int)
+  use type_ <- decode.field("type", content_directory_item_type_decoder())
+  use url <- decode.field("url", decode.string)
+  decode.success(types.ContentDirectoryItem(
+    links: links,
+    content: content,
+    download_url: download_url,
+    git_url: git_url,
+    html_url: html_url,
+    name: name,
+    path: path,
+    sha: sha,
+    size: size,
+    type_: type_,
+    url: url,
+  ))
+}
+
+pub fn decode_content_directory_item(
+  json_string: String,
+) -> Result(types.ContentDirectoryItem, json.DecodeError) {
+  json.parse(json_string, content_directory_item_decoder())
+}
+
+pub fn content_directory_item_decoder_list() -> decode.Decoder(
+  List(types.ContentDirectoryItem),
+) {
+  decode.list(content_directory_item_decoder())
+}
+
+pub fn decode_content_directory_item_list(
+  json_string: String,
+) -> Result(List(types.ContentDirectoryItem), json.DecodeError) {
+  json.parse(json_string, content_directory_item_decoder_list())
+}
+
+pub fn content_directory_item_links_decoder() -> decode.Decoder(
+  types.ContentDirectoryItemLinks,
+) {
+  use git <- decode.field("git", decode.optional(decode.string))
+  use html <- decode.field("html", decode.optional(decode.string))
+  use self <- decode.field("self", decode.string)
+  decode.success(types.ContentDirectoryItemLinks(
+    git: git,
+    html: html,
+    self: self,
+  ))
+}
+
+pub fn decode_content_directory_item_links(
+  json_string: String,
+) -> Result(types.ContentDirectoryItemLinks, json.DecodeError) {
+  json.parse(json_string, content_directory_item_links_decoder())
+}
+
+pub fn content_directory_item_links_decoder_list() -> decode.Decoder(
+  List(types.ContentDirectoryItemLinks),
+) {
+  decode.list(content_directory_item_links_decoder())
+}
+
+pub fn decode_content_directory_item_links_list(
+  json_string: String,
+) -> Result(List(types.ContentDirectoryItemLinks), json.DecodeError) {
+  json.parse(json_string, content_directory_item_links_decoder_list())
+}
+
+pub fn content_file_links_decoder() -> decode.Decoder(types.ContentFileLinks) {
+  use git <- decode.field("git", decode.optional(decode.string))
+  use html <- decode.field("html", decode.optional(decode.string))
+  use self <- decode.field("self", decode.string)
+  decode.success(types.ContentFileLinks(git: git, html: html, self: self))
+}
+
+pub fn decode_content_file_links(
+  json_string: String,
+) -> Result(types.ContentFileLinks, json.DecodeError) {
+  json.parse(json_string, content_file_links_decoder())
+}
+
+pub fn content_file_links_decoder_list() -> decode.Decoder(
+  List(types.ContentFileLinks),
+) {
+  decode.list(content_file_links_decoder())
+}
+
+pub fn decode_content_file_links_list(
+  json_string: String,
+) -> Result(List(types.ContentFileLinks), json.DecodeError) {
+  json.parse(json_string, content_file_links_decoder_list())
+}
+
+pub fn content_submodule_links_decoder() -> decode.Decoder(
+  types.ContentSubmoduleLinks,
+) {
+  use git <- decode.field("git", decode.optional(decode.string))
+  use html <- decode.field("html", decode.optional(decode.string))
+  use self <- decode.field("self", decode.string)
+  decode.success(types.ContentSubmoduleLinks(git: git, html: html, self: self))
+}
+
+pub fn decode_content_submodule_links(
+  json_string: String,
+) -> Result(types.ContentSubmoduleLinks, json.DecodeError) {
+  json.parse(json_string, content_submodule_links_decoder())
+}
+
+pub fn content_submodule_links_decoder_list() -> decode.Decoder(
+  List(types.ContentSubmoduleLinks),
+) {
+  decode.list(content_submodule_links_decoder())
+}
+
+pub fn decode_content_submodule_links_list(
+  json_string: String,
+) -> Result(List(types.ContentSubmoduleLinks), json.DecodeError) {
+  json.parse(json_string, content_submodule_links_decoder_list())
+}
+
+pub fn content_symlink_links_decoder() -> decode.Decoder(
+  types.ContentSymlinkLinks,
+) {
+  use git <- decode.field("git", decode.optional(decode.string))
+  use html <- decode.field("html", decode.optional(decode.string))
+  use self <- decode.field("self", decode.string)
+  decode.success(types.ContentSymlinkLinks(git: git, html: html, self: self))
+}
+
+pub fn decode_content_symlink_links(
+  json_string: String,
+) -> Result(types.ContentSymlinkLinks, json.DecodeError) {
+  json.parse(json_string, content_symlink_links_decoder())
+}
+
+pub fn content_symlink_links_decoder_list() -> decode.Decoder(
+  List(types.ContentSymlinkLinks),
+) {
+  decode.list(content_symlink_links_decoder())
+}
+
+pub fn decode_content_symlink_links_list(
+  json_string: String,
+) -> Result(List(types.ContentSymlinkLinks), json.DecodeError) {
+  json.parse(json_string, content_symlink_links_decoder_list())
+}
+
+pub fn content_tree_entries_decoder() -> decode.Decoder(
+  List(types.ContentTreeEntriesItem),
+) {
+  decode.list(content_tree_entries_item_decoder())
+}
+
+pub fn decode_content_tree_entries(
+  json_string: String,
+) -> Result(List(types.ContentTreeEntriesItem), json.DecodeError) {
+  json.parse(json_string, content_tree_entries_decoder())
+}
+
+pub fn content_tree_entries_item_decoder() -> decode.Decoder(
+  types.ContentTreeEntriesItem,
+) {
+  use links <- decode.field("_links", content_tree_entries_item_links_decoder())
+  use download_url <- decode.field(
+    "download_url",
+    decode.optional(decode.string),
+  )
+  use git_url <- decode.field("git_url", decode.optional(decode.string))
+  use html_url <- decode.field("html_url", decode.optional(decode.string))
+  use name <- decode.field("name", decode.string)
+  use path <- decode.field("path", decode.string)
+  use sha <- decode.field("sha", decode.string)
+  use size <- decode.field("size", decode.int)
+  use type_ <- decode.field("type", decode.string)
+  use url <- decode.field("url", decode.string)
+  decode.success(types.ContentTreeEntriesItem(
+    links: links,
+    download_url: download_url,
+    git_url: git_url,
+    html_url: html_url,
+    name: name,
+    path: path,
+    sha: sha,
+    size: size,
+    type_: type_,
+    url: url,
+  ))
+}
+
+pub fn decode_content_tree_entries_item(
+  json_string: String,
+) -> Result(types.ContentTreeEntriesItem, json.DecodeError) {
+  json.parse(json_string, content_tree_entries_item_decoder())
+}
+
+pub fn content_tree_entries_item_decoder_list() -> decode.Decoder(
+  List(types.ContentTreeEntriesItem),
+) {
+  decode.list(content_tree_entries_item_decoder())
+}
+
+pub fn decode_content_tree_entries_item_list(
+  json_string: String,
+) -> Result(List(types.ContentTreeEntriesItem), json.DecodeError) {
+  json.parse(json_string, content_tree_entries_item_decoder_list())
+}
+
+pub fn content_tree_entries_item_links_decoder() -> decode.Decoder(
+  types.ContentTreeEntriesItemLinks,
+) {
+  use git <- decode.field("git", decode.optional(decode.string))
+  use html <- decode.field("html", decode.optional(decode.string))
+  use self <- decode.field("self", decode.string)
+  decode.success(types.ContentTreeEntriesItemLinks(
+    git: git,
+    html: html,
+    self: self,
+  ))
+}
+
+pub fn decode_content_tree_entries_item_links(
+  json_string: String,
+) -> Result(types.ContentTreeEntriesItemLinks, json.DecodeError) {
+  json.parse(json_string, content_tree_entries_item_links_decoder())
+}
+
+pub fn content_tree_entries_item_links_decoder_list() -> decode.Decoder(
+  List(types.ContentTreeEntriesItemLinks),
+) {
+  decode.list(content_tree_entries_item_links_decoder())
+}
+
+pub fn decode_content_tree_entries_item_links_list(
+  json_string: String,
+) -> Result(List(types.ContentTreeEntriesItemLinks), json.DecodeError) {
+  json.parse(json_string, content_tree_entries_item_links_decoder_list())
+}
+
+pub fn content_tree_links_decoder() -> decode.Decoder(types.ContentTreeLinks) {
+  use git <- decode.field("git", decode.optional(decode.string))
+  use html <- decode.field("html", decode.optional(decode.string))
+  use self <- decode.field("self", decode.string)
+  decode.success(types.ContentTreeLinks(git: git, html: html, self: self))
+}
+
+pub fn decode_content_tree_links(
+  json_string: String,
+) -> Result(types.ContentTreeLinks, json.DecodeError) {
+  json.parse(json_string, content_tree_links_decoder())
+}
+
+pub fn content_tree_links_decoder_list() -> decode.Decoder(
+  List(types.ContentTreeLinks),
+) {
+  decode.list(content_tree_links_decoder())
+}
+
+pub fn decode_content_tree_links_list(
+  json_string: String,
+) -> Result(List(types.ContentTreeLinks), json.DecodeError) {
+  json.parse(json_string, content_tree_links_decoder_list())
+}
+
+pub fn file_commit_commit_decoder() -> decode.Decoder(types.FileCommitCommit) {
+  use author <- decode.optional_field(
+    "author",
+    option.None,
+    decode.optional(file_commit_commit_author_decoder()),
+  )
+  use committer <- decode.optional_field(
+    "committer",
+    option.None,
+    decode.optional(file_commit_commit_committer_decoder()),
+  )
+  use html_url <- decode.optional_field(
+    "html_url",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use message <- decode.optional_field(
+    "message",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use node_id <- decode.optional_field(
+    "node_id",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use parents <- decode.optional_field(
+    "parents",
+    option.None,
+    decode.optional(file_commit_commit_parents_decoder()),
+  )
+  use sha <- decode.optional_field(
+    "sha",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use tree <- decode.optional_field(
+    "tree",
+    option.None,
+    decode.optional(file_commit_commit_tree_decoder()),
+  )
+  use url <- decode.optional_field(
+    "url",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use verification <- decode.optional_field(
+    "verification",
+    option.None,
+    decode.optional(file_commit_commit_verification_decoder()),
+  )
+  decode.success(types.FileCommitCommit(
+    author: author,
+    committer: committer,
+    html_url: html_url,
+    message: message,
+    node_id: node_id,
+    parents: parents,
+    sha: sha,
+    tree: tree,
+    url: url,
+    verification: verification,
+  ))
+}
+
+pub fn decode_file_commit_commit(
+  json_string: String,
+) -> Result(types.FileCommitCommit, json.DecodeError) {
+  json.parse(json_string, file_commit_commit_decoder())
+}
+
+pub fn file_commit_commit_decoder_list() -> decode.Decoder(
+  List(types.FileCommitCommit),
+) {
+  decode.list(file_commit_commit_decoder())
+}
+
+pub fn decode_file_commit_commit_list(
+  json_string: String,
+) -> Result(List(types.FileCommitCommit), json.DecodeError) {
+  json.parse(json_string, file_commit_commit_decoder_list())
+}
+
+pub fn file_commit_commit_author_decoder() -> decode.Decoder(
+  types.FileCommitCommitAuthor,
+) {
+  use date <- decode.optional_field(
+    "date",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use email <- decode.optional_field(
+    "email",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use name <- decode.optional_field(
+    "name",
+    option.None,
+    decode.optional(decode.string),
+  )
+  decode.success(types.FileCommitCommitAuthor(
+    date: date,
+    email: email,
+    name: name,
+  ))
+}
+
+pub fn decode_file_commit_commit_author(
+  json_string: String,
+) -> Result(types.FileCommitCommitAuthor, json.DecodeError) {
+  json.parse(json_string, file_commit_commit_author_decoder())
+}
+
+pub fn file_commit_commit_author_decoder_list() -> decode.Decoder(
+  List(types.FileCommitCommitAuthor),
+) {
+  decode.list(file_commit_commit_author_decoder())
+}
+
+pub fn decode_file_commit_commit_author_list(
+  json_string: String,
+) -> Result(List(types.FileCommitCommitAuthor), json.DecodeError) {
+  json.parse(json_string, file_commit_commit_author_decoder_list())
+}
+
+pub fn file_commit_commit_committer_decoder() -> decode.Decoder(
+  types.FileCommitCommitCommitter,
+) {
+  use date <- decode.optional_field(
+    "date",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use email <- decode.optional_field(
+    "email",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use name <- decode.optional_field(
+    "name",
+    option.None,
+    decode.optional(decode.string),
+  )
+  decode.success(types.FileCommitCommitCommitter(
+    date: date,
+    email: email,
+    name: name,
+  ))
+}
+
+pub fn decode_file_commit_commit_committer(
+  json_string: String,
+) -> Result(types.FileCommitCommitCommitter, json.DecodeError) {
+  json.parse(json_string, file_commit_commit_committer_decoder())
+}
+
+pub fn file_commit_commit_committer_decoder_list() -> decode.Decoder(
+  List(types.FileCommitCommitCommitter),
+) {
+  decode.list(file_commit_commit_committer_decoder())
+}
+
+pub fn decode_file_commit_commit_committer_list(
+  json_string: String,
+) -> Result(List(types.FileCommitCommitCommitter), json.DecodeError) {
+  json.parse(json_string, file_commit_commit_committer_decoder_list())
+}
+
+pub fn file_commit_commit_parents_decoder() -> decode.Decoder(
+  List(types.FileCommitCommitParentsItem),
+) {
+  decode.list(file_commit_commit_parents_item_decoder())
+}
+
+pub fn decode_file_commit_commit_parents(
+  json_string: String,
+) -> Result(List(types.FileCommitCommitParentsItem), json.DecodeError) {
+  json.parse(json_string, file_commit_commit_parents_decoder())
+}
+
+pub fn file_commit_commit_parents_item_decoder() -> decode.Decoder(
+  types.FileCommitCommitParentsItem,
+) {
+  use html_url <- decode.optional_field(
+    "html_url",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use sha <- decode.optional_field(
+    "sha",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use url <- decode.optional_field(
+    "url",
+    option.None,
+    decode.optional(decode.string),
+  )
+  decode.success(types.FileCommitCommitParentsItem(
+    html_url: html_url,
+    sha: sha,
+    url: url,
+  ))
+}
+
+pub fn decode_file_commit_commit_parents_item(
+  json_string: String,
+) -> Result(types.FileCommitCommitParentsItem, json.DecodeError) {
+  json.parse(json_string, file_commit_commit_parents_item_decoder())
+}
+
+pub fn file_commit_commit_parents_item_decoder_list() -> decode.Decoder(
+  List(types.FileCommitCommitParentsItem),
+) {
+  decode.list(file_commit_commit_parents_item_decoder())
+}
+
+pub fn decode_file_commit_commit_parents_item_list(
+  json_string: String,
+) -> Result(List(types.FileCommitCommitParentsItem), json.DecodeError) {
+  json.parse(json_string, file_commit_commit_parents_item_decoder_list())
+}
+
+pub fn file_commit_commit_tree_decoder() -> decode.Decoder(
+  types.FileCommitCommitTree,
+) {
+  use sha <- decode.optional_field(
+    "sha",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use url <- decode.optional_field(
+    "url",
+    option.None,
+    decode.optional(decode.string),
+  )
+  decode.success(types.FileCommitCommitTree(sha: sha, url: url))
+}
+
+pub fn decode_file_commit_commit_tree(
+  json_string: String,
+) -> Result(types.FileCommitCommitTree, json.DecodeError) {
+  json.parse(json_string, file_commit_commit_tree_decoder())
+}
+
+pub fn file_commit_commit_tree_decoder_list() -> decode.Decoder(
+  List(types.FileCommitCommitTree),
+) {
+  decode.list(file_commit_commit_tree_decoder())
+}
+
+pub fn decode_file_commit_commit_tree_list(
+  json_string: String,
+) -> Result(List(types.FileCommitCommitTree), json.DecodeError) {
+  json.parse(json_string, file_commit_commit_tree_decoder_list())
+}
+
+pub fn file_commit_commit_verification_decoder() -> decode.Decoder(
+  types.FileCommitCommitVerification,
+) {
+  use payload <- decode.optional_field(
+    "payload",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use reason <- decode.optional_field(
+    "reason",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use signature <- decode.optional_field(
+    "signature",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use verified <- decode.optional_field(
+    "verified",
+    option.None,
+    decode.optional(decode.bool),
+  )
+  use verified_at <- decode.optional_field(
+    "verified_at",
+    option.None,
+    decode.optional(decode.string),
+  )
+  decode.success(types.FileCommitCommitVerification(
+    payload: payload,
+    reason: reason,
+    signature: signature,
+    verified: verified,
+    verified_at: verified_at,
+  ))
+}
+
+pub fn decode_file_commit_commit_verification(
+  json_string: String,
+) -> Result(types.FileCommitCommitVerification, json.DecodeError) {
+  json.parse(json_string, file_commit_commit_verification_decoder())
+}
+
+pub fn file_commit_commit_verification_decoder_list() -> decode.Decoder(
+  List(types.FileCommitCommitVerification),
+) {
+  decode.list(file_commit_commit_verification_decoder())
+}
+
+pub fn decode_file_commit_commit_verification_list(
+  json_string: String,
+) -> Result(List(types.FileCommitCommitVerification), json.DecodeError) {
+  json.parse(json_string, file_commit_commit_verification_decoder_list())
+}
+
+pub fn file_commit_content_decoder() -> decode.Decoder(types.FileCommitContent) {
+  use links <- decode.optional_field(
+    "_links",
+    option.None,
+    decode.optional(file_commit_content_links_decoder()),
+  )
+  use download_url <- decode.optional_field(
+    "download_url",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use git_url <- decode.optional_field(
+    "git_url",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use html_url <- decode.optional_field(
+    "html_url",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use name <- decode.optional_field(
+    "name",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use path <- decode.optional_field(
+    "path",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use sha <- decode.optional_field(
+    "sha",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use size <- decode.optional_field(
+    "size",
+    option.None,
+    decode.optional(decode.int),
+  )
+  use type_ <- decode.optional_field(
+    "type",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use url <- decode.optional_field(
+    "url",
+    option.None,
+    decode.optional(decode.string),
+  )
+  decode.success(types.FileCommitContent(
+    links: links,
+    download_url: download_url,
+    git_url: git_url,
+    html_url: html_url,
+    name: name,
+    path: path,
+    sha: sha,
+    size: size,
+    type_: type_,
+    url: url,
+  ))
+}
+
+pub fn decode_file_commit_content(
+  json_string: String,
+) -> Result(types.FileCommitContent, json.DecodeError) {
+  json.parse(json_string, file_commit_content_decoder())
+}
+
+pub fn file_commit_content_decoder_list() -> decode.Decoder(
+  List(types.FileCommitContent),
+) {
+  decode.list(file_commit_content_decoder())
+}
+
+pub fn decode_file_commit_content_list(
+  json_string: String,
+) -> Result(List(types.FileCommitContent), json.DecodeError) {
+  json.parse(json_string, file_commit_content_decoder_list())
+}
+
+pub fn file_commit_content_links_decoder() -> decode.Decoder(
+  types.FileCommitContentLinks,
+) {
+  use git <- decode.optional_field(
+    "git",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use html <- decode.optional_field(
+    "html",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use self <- decode.optional_field(
+    "self",
+    option.None,
+    decode.optional(decode.string),
+  )
+  decode.success(types.FileCommitContentLinks(git: git, html: html, self: self))
+}
+
+pub fn decode_file_commit_content_links(
+  json_string: String,
+) -> Result(types.FileCommitContentLinks, json.DecodeError) {
+  json.parse(json_string, file_commit_content_links_decoder())
+}
+
+pub fn file_commit_content_links_decoder_list() -> decode.Decoder(
+  List(types.FileCommitContentLinks),
+) {
+  decode.list(file_commit_content_links_decoder())
+}
+
+pub fn decode_file_commit_content_links_list(
+  json_string: String,
+) -> Result(List(types.FileCommitContentLinks), json.DecodeError) {
+  json.parse(json_string, file_commit_content_links_decoder_list())
 }
 
 pub fn integration_owner_decoder() -> decode.Decoder(types.IntegrationOwner) {
@@ -625,6 +1363,598 @@ pub fn decode_repos_compare_commits_response_service_unavailable_list(
   json.parse(
     json_string,
     repos_compare_commits_response_service_unavailable_decoder_list(),
+  )
+}
+
+pub fn repos_create_or_update_file_contents_request_decoder() -> decode.Decoder(
+  types.ReposCreateOrUpdateFileContentsRequest,
+) {
+  use author <- decode.optional_field(
+    "author",
+    option.None,
+    decode.optional(
+      repos_create_or_update_file_contents_request_author_decoder(),
+    ),
+  )
+  use branch <- decode.optional_field(
+    "branch",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use committer <- decode.optional_field(
+    "committer",
+    option.None,
+    decode.optional(
+      repos_create_or_update_file_contents_request_committer_decoder(),
+    ),
+  )
+  use content <- decode.field("content", decode.string)
+  use message <- decode.field("message", decode.string)
+  use sha <- decode.optional_field(
+    "sha",
+    option.None,
+    decode.optional(decode.string),
+  )
+  decode.success(types.ReposCreateOrUpdateFileContentsRequest(
+    author: author,
+    branch: branch,
+    committer: committer,
+    content: content,
+    message: message,
+    sha: sha,
+  ))
+}
+
+pub fn decode_repos_create_or_update_file_contents_request(
+  json_string: String,
+) -> Result(types.ReposCreateOrUpdateFileContentsRequest, json.DecodeError) {
+  json.parse(
+    json_string,
+    repos_create_or_update_file_contents_request_decoder(),
+  )
+}
+
+pub fn repos_create_or_update_file_contents_request_decoder_list() -> decode.Decoder(
+  List(types.ReposCreateOrUpdateFileContentsRequest),
+) {
+  decode.list(repos_create_or_update_file_contents_request_decoder())
+}
+
+pub fn decode_repos_create_or_update_file_contents_request_list(
+  json_string: String,
+) -> Result(
+  List(types.ReposCreateOrUpdateFileContentsRequest),
+  json.DecodeError,
+) {
+  json.parse(
+    json_string,
+    repos_create_or_update_file_contents_request_decoder_list(),
+  )
+}
+
+/// The author of the file. Default: The `committer` or the authenticated user if you omit `committer`.
+pub fn repos_create_or_update_file_contents_request_author_decoder() -> decode.Decoder(
+  types.ReposCreateOrUpdateFileContentsRequestAuthor,
+) {
+  use date <- decode.optional_field(
+    "date",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use email <- decode.field("email", decode.string)
+  use name <- decode.field("name", decode.string)
+  decode.success(types.ReposCreateOrUpdateFileContentsRequestAuthor(
+    date: date,
+    email: email,
+    name: name,
+  ))
+}
+
+pub fn decode_repos_create_or_update_file_contents_request_author(
+  json_string: String,
+) -> Result(
+  types.ReposCreateOrUpdateFileContentsRequestAuthor,
+  json.DecodeError,
+) {
+  json.parse(
+    json_string,
+    repos_create_or_update_file_contents_request_author_decoder(),
+  )
+}
+
+pub fn repos_create_or_update_file_contents_request_author_decoder_list() -> decode.Decoder(
+  List(types.ReposCreateOrUpdateFileContentsRequestAuthor),
+) {
+  decode.list(repos_create_or_update_file_contents_request_author_decoder())
+}
+
+pub fn decode_repos_create_or_update_file_contents_request_author_list(
+  json_string: String,
+) -> Result(
+  List(types.ReposCreateOrUpdateFileContentsRequestAuthor),
+  json.DecodeError,
+) {
+  json.parse(
+    json_string,
+    repos_create_or_update_file_contents_request_author_decoder_list(),
+  )
+}
+
+/// The person that committed the file. Default: the authenticated user.
+pub fn repos_create_or_update_file_contents_request_committer_decoder() -> decode.Decoder(
+  types.ReposCreateOrUpdateFileContentsRequestCommitter,
+) {
+  use date <- decode.optional_field(
+    "date",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use email <- decode.field("email", decode.string)
+  use name <- decode.field("name", decode.string)
+  decode.success(types.ReposCreateOrUpdateFileContentsRequestCommitter(
+    date: date,
+    email: email,
+    name: name,
+  ))
+}
+
+pub fn decode_repos_create_or_update_file_contents_request_committer(
+  json_string: String,
+) -> Result(
+  types.ReposCreateOrUpdateFileContentsRequestCommitter,
+  json.DecodeError,
+) {
+  json.parse(
+    json_string,
+    repos_create_or_update_file_contents_request_committer_decoder(),
+  )
+}
+
+pub fn repos_create_or_update_file_contents_request_committer_decoder_list() -> decode.Decoder(
+  List(types.ReposCreateOrUpdateFileContentsRequestCommitter),
+) {
+  decode.list(repos_create_or_update_file_contents_request_committer_decoder())
+}
+
+pub fn decode_repos_create_or_update_file_contents_request_committer_list(
+  json_string: String,
+) -> Result(
+  List(types.ReposCreateOrUpdateFileContentsRequestCommitter),
+  json.DecodeError,
+) {
+  json.parse(
+    json_string,
+    repos_create_or_update_file_contents_request_committer_decoder_list(),
+  )
+}
+
+pub fn repos_create_or_update_file_contents_response_conflict_decoder() -> decode.Decoder(
+  types.ReposCreateOrUpdateFileContentsResponseConflict,
+) {
+  use raw <- decode.then(decode.dynamic)
+  let r0 =
+    decode.run(raw, basic_error_decoder())
+    |> result.map(
+      types.ReposCreateOrUpdateFileContentsResponseConflictBasicError,
+    )
+  let r1 =
+    decode.run(raw, repository_rule_violation_error_decoder())
+    |> result.map(
+      types.ReposCreateOrUpdateFileContentsResponseConflictRepositoryRuleViolationError,
+    )
+  let oks =
+    list.filter_map([r0, r1], fn(r) {
+      case r {
+        Ok(v) -> Ok(v)
+        Error(_) -> Error(Nil)
+      }
+    })
+  case oks {
+    [single] -> decode.success(single)
+    [first, _, ..] ->
+      decode.failure(
+        first,
+        "ReposCreateOrUpdateFileContentsResponseConflict: matched multiple oneOf branches; expected exactly one",
+      )
+    [] -> {
+      use fallback <- decode.then(basic_error_decoder())
+      decode.failure(
+        types.ReposCreateOrUpdateFileContentsResponseConflictBasicError(
+          fallback,
+        ),
+        "ReposCreateOrUpdateFileContentsResponseConflict: no oneOf branch matched",
+      )
+    }
+  }
+}
+
+pub fn decode_repos_create_or_update_file_contents_response_conflict(
+  json_string: String,
+) -> Result(
+  types.ReposCreateOrUpdateFileContentsResponseConflict,
+  json.DecodeError,
+) {
+  json.parse(
+    json_string,
+    repos_create_or_update_file_contents_response_conflict_decoder(),
+  )
+}
+
+pub fn repos_delete_file_request_decoder() -> decode.Decoder(
+  types.ReposDeleteFileRequest,
+) {
+  use author <- decode.optional_field(
+    "author",
+    option.None,
+    decode.optional(repos_delete_file_request_author_decoder()),
+  )
+  use branch <- decode.optional_field(
+    "branch",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use committer <- decode.optional_field(
+    "committer",
+    option.None,
+    decode.optional(repos_delete_file_request_committer_decoder()),
+  )
+  use message <- decode.field("message", decode.string)
+  use sha <- decode.field("sha", decode.string)
+  decode.success(types.ReposDeleteFileRequest(
+    author: author,
+    branch: branch,
+    committer: committer,
+    message: message,
+    sha: sha,
+  ))
+}
+
+pub fn decode_repos_delete_file_request(
+  json_string: String,
+) -> Result(types.ReposDeleteFileRequest, json.DecodeError) {
+  json.parse(json_string, repos_delete_file_request_decoder())
+}
+
+pub fn repos_delete_file_request_decoder_list() -> decode.Decoder(
+  List(types.ReposDeleteFileRequest),
+) {
+  decode.list(repos_delete_file_request_decoder())
+}
+
+pub fn decode_repos_delete_file_request_list(
+  json_string: String,
+) -> Result(List(types.ReposDeleteFileRequest), json.DecodeError) {
+  json.parse(json_string, repos_delete_file_request_decoder_list())
+}
+
+/// object containing information about the author.
+pub fn repos_delete_file_request_author_decoder() -> decode.Decoder(
+  types.ReposDeleteFileRequestAuthor,
+) {
+  use email <- decode.optional_field(
+    "email",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use name <- decode.optional_field(
+    "name",
+    option.None,
+    decode.optional(decode.string),
+  )
+  decode.success(types.ReposDeleteFileRequestAuthor(email: email, name: name))
+}
+
+pub fn decode_repos_delete_file_request_author(
+  json_string: String,
+) -> Result(types.ReposDeleteFileRequestAuthor, json.DecodeError) {
+  json.parse(json_string, repos_delete_file_request_author_decoder())
+}
+
+pub fn repos_delete_file_request_author_decoder_list() -> decode.Decoder(
+  List(types.ReposDeleteFileRequestAuthor),
+) {
+  decode.list(repos_delete_file_request_author_decoder())
+}
+
+pub fn decode_repos_delete_file_request_author_list(
+  json_string: String,
+) -> Result(List(types.ReposDeleteFileRequestAuthor), json.DecodeError) {
+  json.parse(json_string, repos_delete_file_request_author_decoder_list())
+}
+
+/// object containing information about the committer.
+pub fn repos_delete_file_request_committer_decoder() -> decode.Decoder(
+  types.ReposDeleteFileRequestCommitter,
+) {
+  use email <- decode.optional_field(
+    "email",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use name <- decode.optional_field(
+    "name",
+    option.None,
+    decode.optional(decode.string),
+  )
+  decode.success(types.ReposDeleteFileRequestCommitter(email: email, name: name))
+}
+
+pub fn decode_repos_delete_file_request_committer(
+  json_string: String,
+) -> Result(types.ReposDeleteFileRequestCommitter, json.DecodeError) {
+  json.parse(json_string, repos_delete_file_request_committer_decoder())
+}
+
+pub fn repos_delete_file_request_committer_decoder_list() -> decode.Decoder(
+  List(types.ReposDeleteFileRequestCommitter),
+) {
+  decode.list(repos_delete_file_request_committer_decoder())
+}
+
+pub fn decode_repos_delete_file_request_committer_list(
+  json_string: String,
+) -> Result(List(types.ReposDeleteFileRequestCommitter), json.DecodeError) {
+  json.parse(json_string, repos_delete_file_request_committer_decoder_list())
+}
+
+pub fn repos_delete_file_response_service_unavailable_decoder() -> decode.Decoder(
+  types.ReposDeleteFileResponseServiceUnavailable,
+) {
+  use code <- decode.optional_field(
+    "code",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use documentation_url <- decode.optional_field(
+    "documentation_url",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use message <- decode.optional_field(
+    "message",
+    option.None,
+    decode.optional(decode.string),
+  )
+  decode.success(types.ReposDeleteFileResponseServiceUnavailable(
+    code: code,
+    documentation_url: documentation_url,
+    message: message,
+  ))
+}
+
+pub fn decode_repos_delete_file_response_service_unavailable(
+  json_string: String,
+) -> Result(types.ReposDeleteFileResponseServiceUnavailable, json.DecodeError) {
+  json.parse(
+    json_string,
+    repos_delete_file_response_service_unavailable_decoder(),
+  )
+}
+
+pub fn repos_delete_file_response_service_unavailable_decoder_list() -> decode.Decoder(
+  List(types.ReposDeleteFileResponseServiceUnavailable),
+) {
+  decode.list(repos_delete_file_response_service_unavailable_decoder())
+}
+
+pub fn decode_repos_delete_file_response_service_unavailable_list(
+  json_string: String,
+) -> Result(
+  List(types.ReposDeleteFileResponseServiceUnavailable),
+  json.DecodeError,
+) {
+  json.parse(
+    json_string,
+    repos_delete_file_response_service_unavailable_decoder_list(),
+  )
+}
+
+pub fn repos_get_content_response_ok_decoder() -> decode.Decoder(
+  types.ReposGetContentResponseOk,
+) {
+  use disc_value <- decode.field("type", decode.string)
+  case disc_value {
+    "array" -> {
+      use inner <- decode.then(content_directory_decoder())
+      decode.success(types.ReposGetContentResponseOkContentDirectory(inner))
+    }
+    "file" -> {
+      use inner <- decode.then(content_file_decoder())
+      decode.success(types.ReposGetContentResponseOkContentFile(inner))
+    }
+    "symlink" -> {
+      use inner <- decode.then(content_symlink_decoder())
+      decode.success(types.ReposGetContentResponseOkContentSymlink(inner))
+    }
+    "submodule" -> {
+      use inner <- decode.then(content_submodule_decoder())
+      decode.success(types.ReposGetContentResponseOkContentSubmodule(inner))
+    }
+    _ -> {
+      use _ <- decode.then(decode.failure(
+        Nil,
+        "ReposGetContentResponseOk: unknown discriminator '"
+          <> disc_value
+          <> "' (expected array|file|submodule|symlink)",
+      ))
+      use v <- decode.then(content_directory_decoder())
+      decode.failure(
+        types.ReposGetContentResponseOkContentDirectory(v),
+        "ReposGetContentResponseOk",
+      )
+    }
+  }
+}
+
+pub fn decode_repos_get_content_response_ok(
+  json_string: String,
+) -> Result(types.ReposGetContentResponseOk, json.DecodeError) {
+  json.parse(json_string, repos_get_content_response_ok_decoder())
+}
+
+pub fn repository_rule_violation_error_metadata_decoder() -> decode.Decoder(
+  types.RepositoryRuleViolationErrorMetadata,
+) {
+  use secret_scanning <- decode.optional_field(
+    "secret_scanning",
+    option.None,
+    decode.optional(
+      repository_rule_violation_error_metadata_secret_scanning_decoder(),
+    ),
+  )
+  decode.success(types.RepositoryRuleViolationErrorMetadata(
+    secret_scanning: secret_scanning,
+  ))
+}
+
+pub fn decode_repository_rule_violation_error_metadata(
+  json_string: String,
+) -> Result(types.RepositoryRuleViolationErrorMetadata, json.DecodeError) {
+  json.parse(json_string, repository_rule_violation_error_metadata_decoder())
+}
+
+pub fn repository_rule_violation_error_metadata_decoder_list() -> decode.Decoder(
+  List(types.RepositoryRuleViolationErrorMetadata),
+) {
+  decode.list(repository_rule_violation_error_metadata_decoder())
+}
+
+pub fn decode_repository_rule_violation_error_metadata_list(
+  json_string: String,
+) -> Result(List(types.RepositoryRuleViolationErrorMetadata), json.DecodeError) {
+  json.parse(
+    json_string,
+    repository_rule_violation_error_metadata_decoder_list(),
+  )
+}
+
+pub fn repository_rule_violation_error_metadata_secret_scanning_decoder() -> decode.Decoder(
+  types.RepositoryRuleViolationErrorMetadataSecretScanning,
+) {
+  use bypass_placeholders <- decode.optional_field(
+    "bypass_placeholders",
+    option.None,
+    decode.optional(
+      repository_rule_violation_error_metadata_secret_scanning_bypass_placeholders_decoder(),
+    ),
+  )
+  decode.success(types.RepositoryRuleViolationErrorMetadataSecretScanning(
+    bypass_placeholders: bypass_placeholders,
+  ))
+}
+
+pub fn decode_repository_rule_violation_error_metadata_secret_scanning(
+  json_string: String,
+) -> Result(
+  types.RepositoryRuleViolationErrorMetadataSecretScanning,
+  json.DecodeError,
+) {
+  json.parse(
+    json_string,
+    repository_rule_violation_error_metadata_secret_scanning_decoder(),
+  )
+}
+
+pub fn repository_rule_violation_error_metadata_secret_scanning_decoder_list() -> decode.Decoder(
+  List(types.RepositoryRuleViolationErrorMetadataSecretScanning),
+) {
+  decode.list(
+    repository_rule_violation_error_metadata_secret_scanning_decoder(),
+  )
+}
+
+pub fn decode_repository_rule_violation_error_metadata_secret_scanning_list(
+  json_string: String,
+) -> Result(
+  List(types.RepositoryRuleViolationErrorMetadataSecretScanning),
+  json.DecodeError,
+) {
+  json.parse(
+    json_string,
+    repository_rule_violation_error_metadata_secret_scanning_decoder_list(),
+  )
+}
+
+pub fn repository_rule_violation_error_metadata_secret_scanning_bypass_placeholders_decoder() -> decode.Decoder(
+  List(
+    types.RepositoryRuleViolationErrorMetadataSecretScanningBypassPlaceholdersItem,
+  ),
+) {
+  decode.list(
+    repository_rule_violation_error_metadata_secret_scanning_bypass_placeholders_item_decoder(),
+  )
+}
+
+pub fn decode_repository_rule_violation_error_metadata_secret_scanning_bypass_placeholders(
+  json_string: String,
+) -> Result(
+  List(
+    types.RepositoryRuleViolationErrorMetadataSecretScanningBypassPlaceholdersItem,
+  ),
+  json.DecodeError,
+) {
+  json.parse(
+    json_string,
+    repository_rule_violation_error_metadata_secret_scanning_bypass_placeholders_decoder(),
+  )
+}
+
+pub fn repository_rule_violation_error_metadata_secret_scanning_bypass_placeholders_item_decoder() -> decode.Decoder(
+  types.RepositoryRuleViolationErrorMetadataSecretScanningBypassPlaceholdersItem,
+) {
+  use placeholder_id <- decode.optional_field(
+    "placeholder_id",
+    option.None,
+    decode.optional(
+      secret_scanning_push_protection_bypass_placeholder_id_decoder(),
+    ),
+  )
+  use token_type <- decode.optional_field(
+    "token_type",
+    option.None,
+    decode.optional(decode.string),
+  )
+  decode.success(
+    types.RepositoryRuleViolationErrorMetadataSecretScanningBypassPlaceholdersItem(
+      placeholder_id: placeholder_id,
+      token_type: token_type,
+    ),
+  )
+}
+
+pub fn decode_repository_rule_violation_error_metadata_secret_scanning_bypass_placeholders_item(
+  json_string: String,
+) -> Result(
+  types.RepositoryRuleViolationErrorMetadataSecretScanningBypassPlaceholdersItem,
+  json.DecodeError,
+) {
+  json.parse(
+    json_string,
+    repository_rule_violation_error_metadata_secret_scanning_bypass_placeholders_item_decoder(),
+  )
+}
+
+pub fn repository_rule_violation_error_metadata_secret_scanning_bypass_placeholders_item_decoder_list() -> decode.Decoder(
+  List(
+    types.RepositoryRuleViolationErrorMetadataSecretScanningBypassPlaceholdersItem,
+  ),
+) {
+  decode.list(
+    repository_rule_violation_error_metadata_secret_scanning_bypass_placeholders_item_decoder(),
+  )
+}
+
+pub fn decode_repository_rule_violation_error_metadata_secret_scanning_bypass_placeholders_item_list(
+  json_string: String,
+) -> Result(
+  List(
+    types.RepositoryRuleViolationErrorMetadataSecretScanningBypassPlaceholdersItem,
+  ),
+  json.DecodeError,
+) {
+  json.parse(
+    json_string,
+    repository_rule_violation_error_metadata_secret_scanning_bypass_placeholders_item_decoder_list(),
   )
 }
 
@@ -968,6 +2298,270 @@ pub fn decode_commit_comparison_list(
   json.parse(json_string, commit_comparison_decoder_list())
 }
 
+pub fn content_directory_decoder() -> decode.Decoder(
+  List(types.ContentDirectoryItem),
+) {
+  decode.list(content_directory_item_decoder())
+}
+
+pub fn decode_content_directory(
+  json_string: String,
+) -> Result(List(types.ContentDirectoryItem), json.DecodeError) {
+  json.parse(json_string, content_directory_decoder())
+}
+
+/// Content File
+pub fn content_file_decoder() -> decode.Decoder(types.ContentFile) {
+  use links <- decode.field("_links", content_file_links_decoder())
+  use content <- decode.field("content", decode.string)
+  use download_url <- decode.field(
+    "download_url",
+    decode.optional(decode.string),
+  )
+  use encoding <- decode.field("encoding", decode.string)
+  use git_url <- decode.field("git_url", decode.optional(decode.string))
+  use html_url <- decode.field("html_url", decode.optional(decode.string))
+  use name <- decode.field("name", decode.string)
+  use path <- decode.field("path", decode.string)
+  use sha <- decode.field("sha", decode.string)
+  use size <- decode.field("size", decode.int)
+  use submodule_git_url <- decode.optional_field(
+    "submodule_git_url",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use target <- decode.optional_field(
+    "target",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use _ <- decode.field(
+    "type",
+    decode.then(decode.string, fn(constant_value) {
+      case constant_value {
+        "file" -> decode.success(Nil)
+        other ->
+          decode.failure(Nil, "expected type=\"file\", got \"" <> other <> "\"")
+      }
+    }),
+  )
+  use url <- decode.field("url", decode.string)
+  decode.success(types.ContentFile(
+    links: links,
+    content: content,
+    download_url: download_url,
+    encoding: encoding,
+    git_url: git_url,
+    html_url: html_url,
+    name: name,
+    path: path,
+    sha: sha,
+    size: size,
+    submodule_git_url: submodule_git_url,
+    target: target,
+    url: url,
+  ))
+}
+
+pub fn decode_content_file(
+  json_string: String,
+) -> Result(types.ContentFile, json.DecodeError) {
+  json.parse(json_string, content_file_decoder())
+}
+
+pub fn content_file_decoder_list() -> decode.Decoder(List(types.ContentFile)) {
+  decode.list(content_file_decoder())
+}
+
+pub fn decode_content_file_list(
+  json_string: String,
+) -> Result(List(types.ContentFile), json.DecodeError) {
+  json.parse(json_string, content_file_decoder_list())
+}
+
+/// An object describing a submodule
+pub fn content_submodule_decoder() -> decode.Decoder(types.ContentSubmodule) {
+  use links <- decode.field("_links", content_submodule_links_decoder())
+  use download_url <- decode.field(
+    "download_url",
+    decode.optional(decode.string),
+  )
+  use git_url <- decode.field("git_url", decode.optional(decode.string))
+  use html_url <- decode.field("html_url", decode.optional(decode.string))
+  use name <- decode.field("name", decode.string)
+  use path <- decode.field("path", decode.string)
+  use sha <- decode.field("sha", decode.string)
+  use size <- decode.field("size", decode.int)
+  use submodule_git_url <- decode.field("submodule_git_url", decode.string)
+  use _ <- decode.field(
+    "type",
+    decode.then(decode.string, fn(constant_value) {
+      case constant_value {
+        "submodule" -> decode.success(Nil)
+        other ->
+          decode.failure(
+            Nil,
+            "expected type=\"submodule\", got \"" <> other <> "\"",
+          )
+      }
+    }),
+  )
+  use url <- decode.field("url", decode.string)
+  decode.success(types.ContentSubmodule(
+    links: links,
+    download_url: download_url,
+    git_url: git_url,
+    html_url: html_url,
+    name: name,
+    path: path,
+    sha: sha,
+    size: size,
+    submodule_git_url: submodule_git_url,
+    url: url,
+  ))
+}
+
+pub fn decode_content_submodule(
+  json_string: String,
+) -> Result(types.ContentSubmodule, json.DecodeError) {
+  json.parse(json_string, content_submodule_decoder())
+}
+
+pub fn content_submodule_decoder_list() -> decode.Decoder(
+  List(types.ContentSubmodule),
+) {
+  decode.list(content_submodule_decoder())
+}
+
+pub fn decode_content_submodule_list(
+  json_string: String,
+) -> Result(List(types.ContentSubmodule), json.DecodeError) {
+  json.parse(json_string, content_submodule_decoder_list())
+}
+
+/// An object describing a symlink
+pub fn content_symlink_decoder() -> decode.Decoder(types.ContentSymlink) {
+  use links <- decode.field("_links", content_symlink_links_decoder())
+  use download_url <- decode.field(
+    "download_url",
+    decode.optional(decode.string),
+  )
+  use git_url <- decode.field("git_url", decode.optional(decode.string))
+  use html_url <- decode.field("html_url", decode.optional(decode.string))
+  use name <- decode.field("name", decode.string)
+  use path <- decode.field("path", decode.string)
+  use sha <- decode.field("sha", decode.string)
+  use size <- decode.field("size", decode.int)
+  use target <- decode.field("target", decode.string)
+  use _ <- decode.field(
+    "type",
+    decode.then(decode.string, fn(constant_value) {
+      case constant_value {
+        "symlink" -> decode.success(Nil)
+        other ->
+          decode.failure(
+            Nil,
+            "expected type=\"symlink\", got \"" <> other <> "\"",
+          )
+      }
+    }),
+  )
+  use url <- decode.field("url", decode.string)
+  decode.success(types.ContentSymlink(
+    links: links,
+    download_url: download_url,
+    git_url: git_url,
+    html_url: html_url,
+    name: name,
+    path: path,
+    sha: sha,
+    size: size,
+    target: target,
+    url: url,
+  ))
+}
+
+pub fn decode_content_symlink(
+  json_string: String,
+) -> Result(types.ContentSymlink, json.DecodeError) {
+  json.parse(json_string, content_symlink_decoder())
+}
+
+pub fn content_symlink_decoder_list() -> decode.Decoder(
+  List(types.ContentSymlink),
+) {
+  decode.list(content_symlink_decoder())
+}
+
+pub fn decode_content_symlink_list(
+  json_string: String,
+) -> Result(List(types.ContentSymlink), json.DecodeError) {
+  json.parse(json_string, content_symlink_decoder_list())
+}
+
+/// Content Tree
+pub fn content_tree_decoder() -> decode.Decoder(types.ContentTree) {
+  use links <- decode.field("_links", content_tree_links_decoder())
+  use content <- decode.optional_field(
+    "content",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use download_url <- decode.field(
+    "download_url",
+    decode.optional(decode.string),
+  )
+  use encoding <- decode.optional_field(
+    "encoding",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use entries <- decode.optional_field(
+    "entries",
+    option.None,
+    decode.optional(content_tree_entries_decoder()),
+  )
+  use git_url <- decode.field("git_url", decode.optional(decode.string))
+  use html_url <- decode.field("html_url", decode.optional(decode.string))
+  use name <- decode.field("name", decode.string)
+  use path <- decode.field("path", decode.string)
+  use sha <- decode.field("sha", decode.string)
+  use size <- decode.field("size", decode.int)
+  use type_ <- decode.field("type", decode.string)
+  use url <- decode.field("url", decode.string)
+  decode.success(types.ContentTree(
+    links: links,
+    content: content,
+    download_url: download_url,
+    encoding: encoding,
+    entries: entries,
+    git_url: git_url,
+    html_url: html_url,
+    name: name,
+    path: path,
+    sha: sha,
+    size: size,
+    type_: type_,
+    url: url,
+  ))
+}
+
+pub fn decode_content_tree(
+  json_string: String,
+) -> Result(types.ContentTree, json.DecodeError) {
+  json.parse(json_string, content_tree_decoder())
+}
+
+pub fn content_tree_decoder_list() -> decode.Decoder(List(types.ContentTree)) {
+  decode.list(content_tree_decoder())
+}
+
+pub fn decode_content_tree_list(
+  json_string: String,
+) -> Result(List(types.ContentTree), json.DecodeError) {
+  json.parse(json_string, content_tree_decoder_list())
+}
+
 /// Diff Entry
 pub fn diff_entry_decoder() -> decode.Decoder(types.DiffEntry) {
   use additions <- decode.field("additions", decode.int)
@@ -1098,6 +2692,32 @@ pub fn decode_enterprise_list(
   json_string: String,
 ) -> Result(List(types.Enterprise), json.DecodeError) {
   json.parse(json_string, enterprise_decoder_list())
+}
+
+/// File Commit
+pub fn file_commit_decoder() -> decode.Decoder(types.FileCommit) {
+  use commit <- decode.field("commit", file_commit_commit_decoder())
+  use content <- decode.field(
+    "content",
+    decode.optional(file_commit_content_decoder()),
+  )
+  decode.success(types.FileCommit(commit: commit, content: content))
+}
+
+pub fn decode_file_commit(
+  json_string: String,
+) -> Result(types.FileCommit, json.DecodeError) {
+  json.parse(json_string, file_commit_decoder())
+}
+
+pub fn file_commit_decoder_list() -> decode.Decoder(List(types.FileCommit)) {
+  decode.list(file_commit_decoder())
+}
+
+pub fn decode_file_commit_list(
+  json_string: String,
+) -> Result(List(types.FileCommit), json.DecodeError) {
+  json.parse(json_string, file_commit_decoder_list())
 }
 
 /// Metaproperties for Git author/committer information.
@@ -1390,6 +3010,68 @@ pub fn decode_reaction_rollup_list(
   json_string: String,
 ) -> Result(List(types.ReactionRollup), json.DecodeError) {
   json.parse(json_string, reaction_rollup_decoder_list())
+}
+
+/// Repository rule violation was detected
+pub fn repository_rule_violation_error_decoder() -> decode.Decoder(
+  types.RepositoryRuleViolationError,
+) {
+  use documentation_url <- decode.optional_field(
+    "documentation_url",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use message <- decode.optional_field(
+    "message",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use metadata <- decode.optional_field(
+    "metadata",
+    option.None,
+    decode.optional(repository_rule_violation_error_metadata_decoder()),
+  )
+  use status <- decode.optional_field(
+    "status",
+    option.None,
+    decode.optional(decode.string),
+  )
+  decode.success(types.RepositoryRuleViolationError(
+    documentation_url: documentation_url,
+    message: message,
+    metadata: metadata,
+    status: status,
+  ))
+}
+
+pub fn decode_repository_rule_violation_error(
+  json_string: String,
+) -> Result(types.RepositoryRuleViolationError, json.DecodeError) {
+  json.parse(json_string, repository_rule_violation_error_decoder())
+}
+
+pub fn repository_rule_violation_error_decoder_list() -> decode.Decoder(
+  List(types.RepositoryRuleViolationError),
+) {
+  decode.list(repository_rule_violation_error_decoder())
+}
+
+pub fn decode_repository_rule_violation_error_list(
+  json_string: String,
+) -> Result(List(types.RepositoryRuleViolationError), json.DecodeError) {
+  json.parse(json_string, repository_rule_violation_error_decoder_list())
+}
+
+pub fn secret_scanning_push_protection_bypass_placeholder_id_decoder() -> decode.Decoder(
+  String,
+) {
+  decode.string
+}
+
+pub fn decode_secret_scanning_push_protection_bypass_placeholder_id(
+  json_string: String,
+) -> Result(String, json.DecodeError) {
+  json.parse(json_string, decode.string)
 }
 
 /// A GitHub user.

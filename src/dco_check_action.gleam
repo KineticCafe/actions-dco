@@ -16,7 +16,7 @@ import gleam/int
 import gleam/javascript/promise.{type Promise}
 import gleam/json
 import gleam/list
-import gleam/option
+import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
 import gleam/uri
@@ -34,16 +34,16 @@ pub fn main() -> Nil {
 
   promise.map(run_pipeline(), fn(result) {
     case result {
-      Ok(#(summary, records)) -> {
-        case write_summary(summary, records) {
+      Ok(#(dco_summary, records)) -> {
+        case write_summary(dco_summary:, records:) {
           Ok(_) -> Nil
           Error(err) ->
             pontil.warning(
               "Failed to write job summary: " <> pontil_core.describe_error(err),
             )
         }
-        case summary.failed > 0 || summary.invalid > 0 {
-          True -> pontil.set_failed(build_failure_message(summary))
+        case dco_summary.failed > 0 || dco_summary.invalid > 0 {
+          True -> pontil.set_failed(build_failure_message(dco_summary))
           False -> pontil.info("DCO check passed.")
         }
       }
@@ -71,6 +71,9 @@ type ActionContext {
     repo: String,
     basehead: String,
     pr_number: Int,
+    api_url: String,
+    token: String,
+    inline_config: Bool,
     cfg: config.Config,
   )
 }
@@ -79,6 +82,13 @@ fn run_pipeline() -> Promise(
   Result(#(DcoSummary, List(DcoRecord)), DcoCheckActionError),
 ) {
   use ctx <- pontil.try_sync(setup())
+
+  // Fetch default branch config (overrides any config input if found)
+  use ctx <- promise.try_await(
+    pontil.group_async("Checking default branch config", fn() {
+      load_default_branch_config(ctx)
+    }),
+  )
 
   use response <- promise.try_await(
     pontil.group_async("Fetching commit comparison", fn() {
@@ -132,7 +142,7 @@ fn post_comment(
   summary summary: DcoSummary,
   records records: List(DcoRecord),
 ) -> Promise(Result(Nil, error.DcoCheckError)) {
-  let body = format_comment_body(summary, records)
+  let body = format_comment_body(summary:, records:)
 
   pipeline.find_existing_comment(
     send: ctx.send,
@@ -153,8 +163,8 @@ fn post_comment(
 }
 
 pub fn format_comment_body(
-  summary: DcoSummary,
-  records: List(DcoRecord),
+  summary summary: DcoSummary,
+  records records: List(DcoRecord),
 ) -> String {
   let has_failures = summary.failed > 0 || summary.invalid > 0
 
@@ -353,7 +363,7 @@ fn setup() -> Result(ActionContext, DcoCheckActionError) {
   let basehead = pr.base.sha <> "..." <> pr.head.sha
 
   use repo <- result.try(case ctx.repo {
-    option.Some(r) -> Ok(r)
+    Some(r) -> Ok(r)
     _ ->
       Error(
         ContextError(context.MissingEventField(
@@ -376,8 +386,69 @@ fn setup() -> Result(ActionContext, DcoCheckActionError) {
     repo: repo.name,
     basehead:,
     pr_number: pr_event.number,
+    api_url: ctx.api_url,
+    token:,
+    inline_config: config_toml != "",
     cfg:,
   ))
+}
+
+/// Load config from the default branch, resolving ref URLs if needed. If found, overrides
+/// the ctx.cfg and emits a warning if an inline config was also provided.
+fn load_default_branch_config(
+  ctx: ActionContext,
+) -> Promise(Result(ActionContext, DcoCheckActionError)) {
+  pipeline.fetch_default_branch_config(
+    api_url: ctx.api_url,
+    token: ctx.token,
+    owner: ctx.owner,
+    repo: ctx.repo,
+  )
+  |> promise.map(fn(r) { result.map_error(r, DcoCheckError) })
+  |> promise.try_await(resolve_default_branch_config(ctx, _))
+}
+
+fn resolve_default_branch_config(
+  ctx: ActionContext,
+  config: Option(config.DefaultBranchConfig),
+) -> Promise(Result(ActionContext, DcoCheckActionError)) {
+  case config {
+    None -> promise.resolve(Ok(ctx))
+    Some(config.DirectConfig(cfg)) -> {
+      warn_on_config_override(ctx.inline_config, None)
+      promise.resolve(Ok(ActionContext(..ctx, cfg:)))
+    }
+    Some(config.RefConfig(url:)) -> {
+      pontil.debug("Config file contains ref, fetching: " <> url)
+
+      pipeline.fetch_ref_config(api_url: ctx.api_url, token: ctx.token, url:)
+      |> promise.map(fn(resp) {
+        resp
+        |> result.map_error(DcoCheckError)
+        |> result.map(fn(cfg) {
+          warn_on_config_override(ctx.inline_config, Some(url))
+          ActionContext(..ctx, cfg:)
+        })
+      })
+    }
+  }
+}
+
+fn warn_on_config_override(inline_config: Bool, url: Option(String)) -> Nil {
+  use <- bool.guard(!inline_config, return: Nil)
+
+  case url {
+    None ->
+      pontil.warning(
+        "Using configuration from default branch config file. The 'config' workflow input is overridden.",
+      )
+    Some(url) ->
+      pontil.warning(
+        "Using configuration from remote ref ("
+        <> url
+        <> "). The 'config' workflow input is overridden.",
+      )
+  }
 }
 
 fn guard_pr_context(
@@ -398,8 +469,8 @@ fn guard_pr_context(
 }
 
 pub fn write_summary(
-  dco_summary: DcoSummary,
-  records: List(DcoRecord),
+  dco_summary dco_summary: DcoSummary,
+  records records: List(DcoRecord),
 ) -> Result(Nil, pontil_core.PontilCoreError) {
   let has_failures = dco_summary.failed > 0 || dco_summary.invalid > 0
 
@@ -534,7 +605,8 @@ fn format_disposition(record: DcoRecord) -> String {
 fn write_error_summary(err: DcoCheckActionError) -> Nil {
   case err {
     DcoCheckError(error.ResponseDecodeError(decode_err)) -> {
-      let error_detail = error.describe_error(error.ResponseDecodeError(decode_err))
+      let error_detail =
+        error.describe_error(error.ResponseDecodeError(decode_err))
       let search_query = decode_error_search_query(decode_err)
       let search_url =
         "https://github.com/KineticCafe/actions-dco/issues?q=is%3Aissue+"
@@ -547,8 +619,7 @@ fn write_error_summary(err: DcoCheckActionError) -> Nil {
         summary.new()
         |> summary.h1("❌ Internal Error")
         |> summary.raw(
-          "The commit comparison response could not be decoded. "
-          <> "This is probably a bug in `actions-dco`, not a problem with your pull request.",
+          "The commit comparison response could not be decoded. This is probably a bug in `actions-dco`, not a problem with your pull request.",
         )
         |> summary.eol
         |> summary.eol
@@ -562,16 +633,19 @@ fn write_error_summary(err: DcoCheckActionError) -> Nil {
         |> summary.eol
         |> summary.eol
         |> summary.raw(
-          "[Search existing issues](" <> search_url <> ")"
+          "[Search existing issues]("
+          <> search_url
+          <> ")"
           <> " · "
-          <> "[File a new issue](" <> new_issue_url <> ")",
+          <> "[File a new issue]("
+          <> new_issue_url
+          <> ")",
         )
         |> summary.eol
 
-      case summary.overwrite(elements) {
-        Ok(_) -> Nil
-        Error(_) -> Nil
-      }
+      summary.overwrite(elements)
+      |> result.map(fn(_) { Nil })
+      |> result.unwrap(Nil)
     }
     _ -> Nil
   }

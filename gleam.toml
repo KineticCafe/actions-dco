@@ -43,9 +43,10 @@ module_complexity = "warning"
 
 [tools.glinter.ignore]
 "src/dco_check/internal/github/*.gleam" = [
-  "thrown_away_error",
   "function_complexity",
   "missing_labels",
+  "module_complexity",
+  "thrown_away_error",
 ]
 
 [tools.pontil_build.bundle]

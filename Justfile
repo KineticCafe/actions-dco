@@ -1,5 +1,5 @@
 openapi_url := "https://raw.githubusercontent.com/github/rest-api-description/refs/heads/main/descriptions-next/api.github.com/api.github.com.yaml"
-openapi_paths := "/repos/{owner}/{repo}/compare/{basehead} /repos/{owner}/{repo}/issues/{issue_number}/comments /repos/{owner}/{repo}/issues/comments/{comment_id} /repos/{owner}/{repo}/issues/{issue_number}/comments"
+openapi_paths := "/repos/{owner}/{repo}/compare/{basehead} /repos/{owner}/{repo}/contents/{path} /repos/{owner}/{repo}/issues/comments/{comment_id} /repos/{owner}/{repo}/issues/{issue_number}/comments"
 
 _default:
     just --list
@@ -8,6 +8,7 @@ _default:
 @generate: simplify_openapi
     gleam run -m oaspec generate
     gleam format
+    fastmod --accept-all '[ \t]$' '' src/dco_check/internal/github/
 
 @clean:
     rm -rf build gen

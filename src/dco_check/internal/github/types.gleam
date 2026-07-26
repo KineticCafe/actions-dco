@@ -3,6 +3,13 @@
 import gleam/dict.{type Dict}
 import gleam/option.{type Option}
 
+pub type ContentDirectoryItemType {
+  ContentDirectoryItemTypeDir
+  ContentDirectoryItemTypeFile
+  ContentDirectoryItemTypeSubmodule
+  ContentDirectoryItemTypeSymlink
+}
+
 pub type CommitComparisonStatus {
   CommitComparisonStatusDiverged
   CommitComparisonStatusAhead
@@ -69,6 +76,151 @@ pub type CommitStats {
   )
 }
 
+pub type ContentDirectoryItem {
+  ContentDirectoryItem(
+    links: ContentDirectoryItemLinks,
+    content: Option(String),
+    download_url: Option(String),
+    git_url: Option(String),
+    html_url: Option(String),
+    name: String,
+    path: String,
+    sha: String,
+    size: Int,
+    type_: ContentDirectoryItemType,
+    url: String,
+  )
+}
+
+pub type ContentDirectoryItemLinks {
+  ContentDirectoryItemLinks(
+    git: Option(String),
+    html: Option(String),
+    self: String,
+  )
+}
+
+pub type ContentFileLinks {
+  ContentFileLinks(git: Option(String), html: Option(String), self: String)
+}
+
+pub type ContentSubmoduleLinks {
+  ContentSubmoduleLinks(git: Option(String), html: Option(String), self: String)
+}
+
+pub type ContentSymlinkLinks {
+  ContentSymlinkLinks(git: Option(String), html: Option(String), self: String)
+}
+
+pub type ContentTreeEntries =
+  List(ContentTreeEntriesItem)
+
+pub type ContentTreeEntriesItem {
+  ContentTreeEntriesItem(
+    links: ContentTreeEntriesItemLinks,
+    download_url: Option(String),
+    git_url: Option(String),
+    html_url: Option(String),
+    name: String,
+    path: String,
+    sha: String,
+    size: Int,
+    type_: String,
+    url: String,
+  )
+}
+
+pub type ContentTreeEntriesItemLinks {
+  ContentTreeEntriesItemLinks(
+    git: Option(String),
+    html: Option(String),
+    self: String,
+  )
+}
+
+pub type ContentTreeLinks {
+  ContentTreeLinks(git: Option(String), html: Option(String), self: String)
+}
+
+pub type FileCommitCommit {
+  FileCommitCommit(
+    author: Option(FileCommitCommitAuthor),
+    committer: Option(FileCommitCommitCommitter),
+    html_url: Option(String),
+    message: Option(String),
+    node_id: Option(String),
+    parents: Option(FileCommitCommitParents),
+    sha: Option(String),
+    tree: Option(FileCommitCommitTree),
+    url: Option(String),
+    verification: Option(FileCommitCommitVerification),
+  )
+}
+
+pub type FileCommitCommitAuthor {
+  FileCommitCommitAuthor(
+    date: Option(String),
+    email: Option(String),
+    name: Option(String),
+  )
+}
+
+pub type FileCommitCommitCommitter {
+  FileCommitCommitCommitter(
+    date: Option(String),
+    email: Option(String),
+    name: Option(String),
+  )
+}
+
+pub type FileCommitCommitParents =
+  List(FileCommitCommitParentsItem)
+
+pub type FileCommitCommitParentsItem {
+  FileCommitCommitParentsItem(
+    html_url: Option(String),
+    sha: Option(String),
+    url: Option(String),
+  )
+}
+
+pub type FileCommitCommitTree {
+  FileCommitCommitTree(sha: Option(String), url: Option(String))
+}
+
+pub type FileCommitCommitVerification {
+  FileCommitCommitVerification(
+    payload: Option(String),
+    reason: Option(String),
+    signature: Option(String),
+    verified: Option(Bool),
+    verified_at: Option(String),
+  )
+}
+
+pub type FileCommitContent {
+  FileCommitContent(
+    links: Option(FileCommitContentLinks),
+    download_url: Option(String),
+    git_url: Option(String),
+    html_url: Option(String),
+    name: Option(String),
+    path: Option(String),
+    sha: Option(String),
+    size: Option(Int),
+    type_: Option(String),
+    url: Option(String),
+  )
+}
+
+pub type FileCommitContentLinks {
+  FileCommitContentLinks(
+    git: Option(String),
+    html: Option(String),
+    self: Option(String),
+  )
+}
+
 pub type IntegrationOwner {
   IntegrationOwnerSimpleUser(SimpleUser)
   IntegrationOwnerEnterprise(Enterprise)
@@ -119,6 +271,101 @@ pub type ReposCompareCommitsResponseServiceUnavailable {
     code: Option(String),
     documentation_url: Option(String),
     message: Option(String),
+  )
+}
+
+pub type ReposCreateOrUpdateFileContentsRequest {
+  ReposCreateOrUpdateFileContentsRequest(
+    author: Option(ReposCreateOrUpdateFileContentsRequestAuthor),
+    branch: Option(String),
+    committer: Option(ReposCreateOrUpdateFileContentsRequestCommitter),
+    content: String,
+    message: String,
+    sha: Option(String),
+  )
+}
+
+/// The author of the file. Default: The `committer` or the authenticated user if you omit `committer`.
+pub type ReposCreateOrUpdateFileContentsRequestAuthor {
+  ReposCreateOrUpdateFileContentsRequestAuthor(
+    date: Option(String),
+    email: String,
+    name: String,
+  )
+}
+
+/// The person that committed the file. Default: the authenticated user.
+pub type ReposCreateOrUpdateFileContentsRequestCommitter {
+  ReposCreateOrUpdateFileContentsRequestCommitter(
+    date: Option(String),
+    email: String,
+    name: String,
+  )
+}
+
+pub type ReposCreateOrUpdateFileContentsResponseConflict {
+  ReposCreateOrUpdateFileContentsResponseConflictBasicError(BasicError)
+  ReposCreateOrUpdateFileContentsResponseConflictRepositoryRuleViolationError(
+    RepositoryRuleViolationError,
+  )
+}
+
+pub type ReposDeleteFileRequest {
+  ReposDeleteFileRequest(
+    author: Option(ReposDeleteFileRequestAuthor),
+    branch: Option(String),
+    committer: Option(ReposDeleteFileRequestCommitter),
+    message: String,
+    sha: String,
+  )
+}
+
+/// object containing information about the author.
+pub type ReposDeleteFileRequestAuthor {
+  ReposDeleteFileRequestAuthor(email: Option(String), name: Option(String))
+}
+
+/// object containing information about the committer.
+pub type ReposDeleteFileRequestCommitter {
+  ReposDeleteFileRequestCommitter(email: Option(String), name: Option(String))
+}
+
+pub type ReposDeleteFileResponseServiceUnavailable {
+  ReposDeleteFileResponseServiceUnavailable(
+    code: Option(String),
+    documentation_url: Option(String),
+    message: Option(String),
+  )
+}
+
+pub type ReposGetContentResponseOk {
+  ReposGetContentResponseOkContentDirectory(ContentDirectory)
+  ReposGetContentResponseOkContentFile(ContentFile)
+  ReposGetContentResponseOkContentSymlink(ContentSymlink)
+  ReposGetContentResponseOkContentSubmodule(ContentSubmodule)
+}
+
+pub type RepositoryRuleViolationErrorMetadata {
+  RepositoryRuleViolationErrorMetadata(
+    secret_scanning: Option(RepositoryRuleViolationErrorMetadataSecretScanning),
+  )
+}
+
+pub type RepositoryRuleViolationErrorMetadataSecretScanning {
+  RepositoryRuleViolationErrorMetadataSecretScanning(
+    bypass_placeholders: Option(
+      RepositoryRuleViolationErrorMetadataSecretScanningBypassPlaceholders,
+    ),
+  )
+}
+
+pub type RepositoryRuleViolationErrorMetadataSecretScanningBypassPlaceholders =
+  List(RepositoryRuleViolationErrorMetadataSecretScanningBypassPlaceholdersItem)
+
+pub type RepositoryRuleViolationErrorMetadataSecretScanningBypassPlaceholdersItem {
+  RepositoryRuleViolationErrorMetadataSecretScanningBypassPlaceholdersItem(
+    placeholder_id: Option(SecretScanningPushProtectionBypassPlaceholderId),
+    token_type: Option(String),
   )
 }
 
@@ -215,6 +462,79 @@ pub type CommitComparison {
   )
 }
 
+pub type ContentDirectory =
+  List(ContentDirectoryItem)
+
+/// Content File
+pub type ContentFile {
+  ContentFile(
+    links: ContentFileLinks,
+    content: String,
+    download_url: Option(String),
+    encoding: String,
+    git_url: Option(String),
+    html_url: Option(String),
+    name: String,
+    path: String,
+    sha: String,
+    size: Int,
+    submodule_git_url: Option(String),
+    target: Option(String),
+    url: String,
+  )
+}
+
+/// An object describing a submodule
+pub type ContentSubmodule {
+  ContentSubmodule(
+    links: ContentSubmoduleLinks,
+    download_url: Option(String),
+    git_url: Option(String),
+    html_url: Option(String),
+    name: String,
+    path: String,
+    sha: String,
+    size: Int,
+    submodule_git_url: String,
+    url: String,
+  )
+}
+
+/// An object describing a symlink
+pub type ContentSymlink {
+  ContentSymlink(
+    links: ContentSymlinkLinks,
+    download_url: Option(String),
+    git_url: Option(String),
+    html_url: Option(String),
+    name: String,
+    path: String,
+    sha: String,
+    size: Int,
+    target: String,
+    url: String,
+  )
+}
+
+/// Content Tree
+pub type ContentTree {
+  ContentTree(
+    links: ContentTreeLinks,
+    content: Option(String),
+    download_url: Option(String),
+    encoding: Option(String),
+    entries: Option(ContentTreeEntries),
+    git_url: Option(String),
+    html_url: Option(String),
+    name: String,
+    path: String,
+    sha: String,
+    size: Int,
+    type_: String,
+    url: String,
+  )
+}
+
 /// Diff Entry
 pub type DiffEntry {
   DiffEntry(
@@ -251,6 +571,11 @@ pub type Enterprise {
     updated_at: Option(String),
     website_url: Option(String),
   )
+}
+
+/// File Commit
+pub type FileCommit {
+  FileCommit(commit: FileCommitCommit, content: Option(FileCommitContent))
 }
 
 /// Metaproperties for Git author/committer information.
@@ -327,6 +652,19 @@ pub type ReactionRollup {
     url: String,
   )
 }
+
+/// Repository rule violation was detected
+pub type RepositoryRuleViolationError {
+  RepositoryRuleViolationError(
+    documentation_url: Option(String),
+    message: Option(String),
+    metadata: Option(RepositoryRuleViolationErrorMetadata),
+    status: Option(String),
+  )
+}
+
+pub type SecretScanningPushProtectionBypassPlaceholderId =
+  String
 
 /// A GitHub user.
 pub type SimpleUser {

@@ -25,8 +25,8 @@ inputs:
 
   config:
     description: |
-      Embedded TOML configuration. This is the preferred way to configure the action. See
-      documentation for the full configuration reference.
+      Embedded TOML configuration. See documentation for the full configuration reference.
+      Ignored if a default branch configuration file is found.
     required: false
     default: ''
 

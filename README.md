@@ -40,7 +40,8 @@ configuration.
   Default: `${{ github.token }}`
 
 - `config`: Embedded TOML configuration (see [Configuration](#configuration)
-  below). This is the preferred way to configure the action.
+  below). This or a default branch configuration file is the preferred way to
+  configure the action.
 
 - `exempt-authors` (_deprecated_): A whitespace-separated list of email
   exemption patterns. Use the `config` input instead. A deprecation warning will
@@ -48,6 +49,9 @@ configuration.
   both action input and in the `config` input.
 
 ## Configuration
+
+Configuration is managed as a TOML file, either inline TOML via the `config`
+input or a [Default Branch Configuration](#default-branch-configuration)
 
 Configuration is managed as inline TOML via the `config` input.
 
@@ -225,6 +229,39 @@ This applies to _all committers_, not just bots.
 [alias-signoffs.aliases]
 "49699333+dependabot[bot]@users.noreply.github.com" = ["support@github.com"]
 ```
+
+### Default Branch Configuration
+
+For security purposes, `actions-dco` will always check the default branch of the
+repo for the existence of either `.github/dco-check.toml` or `.dco-check.toml`
+in the root directory.
+
+If either is found, it will be parsed to produce an `actions-dco` configuration
+file and it overrides any `config` parameter defined in the workflow. A warning
+will be printed when this happens.
+
+The parsed configuration file may be a standard configuration file (described
+above) or a TOML file with a single root level key: `ref` that has a URL value.
+
+```toml
+# A remote reference.
+ref = "https://raw.github.com/other/repo/blob/main/config/actions-dco.toml"
+```
+
+This `ref` value _must_ be the only key in the file and the value _must_ be an
+HTTPS URL. This allows for centralized configuration. If the provided URL
+matches the API URL (e.g., `https://api.github.com/*`), it will be requested
+with the configured API token. Otherwise, the configuration file will be
+requested without any authentication.
+
+HTTP Redirects will be followed, but the result must be a valid _standard_
+configuration TOML file and not another `ref` configuration file. The presence
+of a `ref` configuration in a _standard_ configuration TOML file will be flagged
+as an error.
+
+If the file exists (any value other than 404 is returned) and does not parse, it
+will error out and `actions-dco` will report the error. Symlinks are not
+supported, only real files at `.github/dco-check.toml` or `.dco-check.toml`.
 
 ## How it works
 

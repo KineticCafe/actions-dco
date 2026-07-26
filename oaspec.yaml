@@ -14,3 +14,4 @@ targets:
         - "/repos/{owner}/{repo}/issues/{issue_number}/comments"
         - "/repos/{owner}/{repo}/issues/comments/{comment_id}"
         - "/repos/{owner}/{repo}/issues/{issue_number}/comments"
+        - "/repos/{owner}/{repo}/contents/{path}"

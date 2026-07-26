@@ -252,7 +252,8 @@ pub fn mask_email_noreply_test() {
 // top level. This must decode and process successfully.
 
 fn load_null_author_fixture() {
-  let assert Ok(json) = simplifile.read("test/fixtures/null_author_commits.json")
+  let assert Ok(json) =
+    simplifile.read("test/fixtures/null_author_commits.json")
   let decoder = {
     use html_url <- d.field("html_url", d.string)
     use total_commits <- d.field("total_commits", d.int)

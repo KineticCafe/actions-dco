@@ -285,6 +285,549 @@ pub fn repos_compare_commits_with_request_async(
   )
 }
 
+/// Get repository content
+/// Gets the contents of a file or directory in a repository. Specify the file path or directory with the `path` parameter. If you omit the `path` parameter, you will receive the contents of the repository's root directory.
+///
+/// This endpoint supports the following custom media types. For more information, see "[Media types](https://docs.github.com/rest/using-the-rest-api/getting-started-with-the-rest-api#media-types)."
+///
+/// - **`application/vnd.github.raw+json`**: Returns the raw file contents for files and symlinks.
+/// - **`application/vnd.github.html+json`**: Returns the file contents in HTML. Markup languages are rendered to HTML using GitHub's open-source [Markup library](https://github.com/github/markup).
+/// - **`application/vnd.github.object+json`**: Returns the contents in a consistent object format regardless of the content type. For example, instead of an array of objects for a directory, the response will be an object with an `entries` attribute containing the array of objects.
+///
+/// If the content is a directory, the response will be an array of objects, one object for each item in the directory. When listing the contents of a directory, submodules have their "type" specified as "file". Logically, the value _should_ be "submodule". This behavior exists [for backwards compatibility purposes](https://git.io/v1YCW). In the next major version of the API, the type will be returned as "submodule".
+///
+/// If the content is a symlink and the symlink's target is a normal file in the repository, then the API responds with the content of the file. Otherwise, the API responds with an object describing the symlink itself.
+///
+/// If the content is a submodule, the `submodule_git_url` field identifies the location of the submodule repository, and the `sha` identifies a specific commit within the submodule repository. Git uses the given URL when cloning the submodule repository, and checks out the submodule at that specific commit. If the submodule repository is not hosted on github.com, the Git URLs (`git_url` and `_links["git"]`) and the github.com URLs (`html_url` and `_links["html"]`) will have null values.
+///
+/// **Notes**:
+///
+/// - To get a repository's contents recursively, you can [recursively get the tree](https://docs.github.com/rest/git/trees#get-a-tree).
+/// - This API has an upper limit of 1,000 files for a directory. If you need to retrieve
+/// more files, use the [Git Trees API](https://docs.github.com/rest/git/trees#get-a-tree).
+/// - Download URLs expire and are meant to be used just once. To ensure the download URL does not expire, please use the contents API to obtain a fresh download URL for each download.
+/// - If the requested file's size is:
+///   - 1 MB or smaller: All features of this endpoint are supported.
+///   - Between 1-100 MB: Only the `raw` or `object` custom media types are supported. Both will work as normal, except that when using the `object` media type, the `content` field will be an empty
+/// string and the `encoding` field will be `"none"`. To get the contents of these larger files, use the `raw` media type.
+///   - Greater than 100 MB: This endpoint is not supported.
+pub fn repos_get_content(
+  send send: transport.Send,
+  owner owner: String,
+  repo repo: String,
+  path_2 path_2: String,
+  ref ref: Option(String),
+  body body: Option(String),
+) -> Result(response_types.ReposGetContentResponse, ClientError) {
+  use req <- result.try(build_repos_get_content_request(
+    owner: owner,
+    repo: repo,
+    path_2: path_2,
+    ref: ref,
+    body: body,
+  ))
+  use resp <- result.try(
+    send(req)
+    |> result.map_error(TransportError),
+  )
+  decode_repos_get_content_response(resp)
+}
+
+/// Async transport variant of repos_get_content. Resolves to the typed response or a client error.
+pub fn repos_get_content_async(
+  async_send async_send: transport.AsyncSend,
+  owner owner: String,
+  repo repo: String,
+  path_2 path_2: String,
+  ref ref: Option(String),
+  body body: Option(String),
+) -> transport.Async(
+  Result(response_types.ReposGetContentResponse, ClientError),
+) {
+  case
+    build_repos_get_content_request(
+      owner: owner,
+      repo: repo,
+      path_2: path_2,
+      ref: ref,
+      body: body,
+    )
+  {
+    Ok(req) ->
+      await_response(async_send(req), decode_repos_get_content_response)
+    Error(error) -> transport.resolve(Error(error))
+  }
+}
+
+/// Build the transport request for repos_get_content without sending it. Useful for testing and for adding custom transport middleware.
+pub fn build_repos_get_content_request(
+  owner owner: String,
+  repo repo: String,
+  path_2 path_2: String,
+  ref ref: Option(String),
+  body body: Option(String),
+) -> Result(transport.Request, ClientError) {
+  let path = "/repos/{owner}/{repo}/contents/{path}"
+  let path = string.replace(path, "{owner}", uri.percent_encode(owner))
+  let path = string.replace(path, "{repo}", uri.percent_encode(repo))
+  let path = string.replace(path, "{path}", uri.percent_encode(path_2))
+  let query = []
+  let query = case ref {
+    Some(v) -> [#("ref", v), ..query]
+    None -> query
+  }
+  let query = list.reverse(query)
+  let headers = []
+  let body = case body {
+    Some(body) -> transport.TextBody(body)
+    None -> transport.EmptyBody
+  }
+  let headers = case body {
+    transport.EmptyBody -> headers
+    _ -> [#("content-type", "application/json"), ..headers]
+  }
+  Ok(
+    transport.Request(
+      method: transport.Get,
+      base_url: Some(default_base_url()),
+      path: path,
+      query: query,
+      headers: headers,
+      body: body,
+      security: [],
+    ),
+  )
+}
+
+/// Decode a transport response into the typed response variant for repos_get_content.
+pub fn decode_repos_get_content_response(
+  resp: transport.Response,
+) -> Result(response_types.ReposGetContentResponse, ClientError) {
+  case resp.status {
+    200 -> {
+      use text <- result.try(text_body(resp.body))
+      Ok(response_types.ReposGetContentResponseOk(text))
+    }
+    302 -> Ok(response_types.ReposGetContentResponseFound)
+    304 -> Ok(response_types.ReposGetContentResponseNotModified)
+    403 -> {
+      use text <- result.try(text_body(resp.body))
+      case decode.decode_basic_error(text) {
+        Ok(decoded) ->
+          Ok(response_types.ReposGetContentResponseForbidden(decoded))
+        Error(_) ->
+          Error(DecodeFailure(detail: "Failed to decode response body"))
+      }
+    }
+    404 -> {
+      use text <- result.try(text_body(resp.body))
+      case decode.decode_basic_error(text) {
+        Ok(decoded) ->
+          Ok(response_types.ReposGetContentResponseNotFound(decoded))
+        Error(_) ->
+          Error(DecodeFailure(detail: "Failed to decode response body"))
+      }
+    }
+    _ ->
+      Error(UnexpectedStatus(
+        status: resp.status,
+        headers: resp.headers,
+        body: resp.body,
+      ))
+  }
+}
+
+/// Request-object wrapper. Delegates to repos_get_content with fields unpacked from the request record.
+pub fn repos_get_content_with_request(
+  send send: transport.Send,
+  request request: request_types.ReposGetContentRequest,
+) -> Result(response_types.ReposGetContentResponse, ClientError) {
+  repos_get_content(
+    send,
+    request.owner,
+    request.repo,
+    request.path_2,
+    request.ref,
+    request.body,
+  )
+}
+
+/// Async request-object wrapper. Delegates to repos_get_content_async with fields unpacked from the request record.
+pub fn repos_get_content_with_request_async(
+  async_send async_send: transport.AsyncSend,
+  request request: request_types.ReposGetContentRequest,
+) -> transport.Async(
+  Result(response_types.ReposGetContentResponse, ClientError),
+) {
+  repos_get_content_async(
+    async_send,
+    request.owner,
+    request.repo,
+    request.path_2,
+    request.ref,
+    request.body,
+  )
+}
+
+/// Create or update file contents
+/// Creates a new file or replaces an existing file in a repository.
+///
+/// > [!NOTE]
+/// > If you use this endpoint and the "[Delete a file](https://docs.github.com/rest/repos/contents/#delete-a-file)" endpoint in parallel, the concurrent requests will conflict and you will receive errors. You must use these endpoints serially instead.
+///
+/// OAuth app tokens and personal access tokens (classic) need the `repo` scope to use this endpoint. The `workflow` scope is also required in order to modify files in the `.github/workflows` directory.
+pub fn repos_create_or_update_file_contents(
+  send send: transport.Send,
+  owner owner: String,
+  repo repo: String,
+  path_2 path_2: String,
+  body body: types.ReposCreateOrUpdateFileContentsRequest,
+) -> Result(response_types.ReposCreateOrUpdateFileContentsResponse, ClientError) {
+  use req <- result.try(build_repos_create_or_update_file_contents_request(
+    owner: owner,
+    repo: repo,
+    path_2: path_2,
+    body: body,
+  ))
+  use resp <- result.try(
+    send(req)
+    |> result.map_error(TransportError),
+  )
+  decode_repos_create_or_update_file_contents_response(resp)
+}
+
+/// Async transport variant of repos_create_or_update_file_contents. Resolves to the typed response or a client error.
+pub fn repos_create_or_update_file_contents_async(
+  async_send async_send: transport.AsyncSend,
+  owner owner: String,
+  repo repo: String,
+  path_2 path_2: String,
+  body body: types.ReposCreateOrUpdateFileContentsRequest,
+) -> transport.Async(
+  Result(response_types.ReposCreateOrUpdateFileContentsResponse, ClientError),
+) {
+  case
+    build_repos_create_or_update_file_contents_request(
+      owner: owner,
+      repo: repo,
+      path_2: path_2,
+      body: body,
+    )
+  {
+    Ok(req) ->
+      await_response(
+        async_send(req),
+        decode_repos_create_or_update_file_contents_response,
+      )
+    Error(error) -> transport.resolve(Error(error))
+  }
+}
+
+/// Build the transport request for repos_create_or_update_file_contents without sending it. Useful for testing and for adding custom transport middleware.
+pub fn build_repos_create_or_update_file_contents_request(
+  owner owner: String,
+  repo repo: String,
+  path_2 path_2: String,
+  body body: types.ReposCreateOrUpdateFileContentsRequest,
+) -> Result(transport.Request, ClientError) {
+  let path = "/repos/{owner}/{repo}/contents/{path}"
+  let path = string.replace(path, "{owner}", uri.percent_encode(owner))
+  let path = string.replace(path, "{repo}", uri.percent_encode(repo))
+  let path = string.replace(path, "{path}", uri.percent_encode(path_2))
+  let query = []
+  let headers = []
+  let body =
+    transport.TextBody(
+      encode.encode_repos_create_or_update_file_contents_request(body),
+    )
+  let headers = [#("content-type", "application/json"), ..headers]
+  Ok(
+    transport.Request(
+      method: transport.Put,
+      base_url: Some(default_base_url()),
+      path: path,
+      query: query,
+      headers: headers,
+      body: body,
+      security: [],
+    ),
+  )
+}
+
+/// Decode a transport response into the typed response variant for repos_create_or_update_file_contents.
+pub fn decode_repos_create_or_update_file_contents_response(
+  resp: transport.Response,
+) -> Result(response_types.ReposCreateOrUpdateFileContentsResponse, ClientError) {
+  case resp.status {
+    200 -> {
+      use text <- result.try(text_body(resp.body))
+      case decode.decode_file_commit(text) {
+        Ok(decoded) ->
+          Ok(response_types.ReposCreateOrUpdateFileContentsResponseOk(decoded))
+        Error(_) ->
+          Error(DecodeFailure(detail: "Failed to decode response body"))
+      }
+    }
+    201 -> {
+      use text <- result.try(text_body(resp.body))
+      case decode.decode_file_commit(text) {
+        Ok(decoded) ->
+          Ok(response_types.ReposCreateOrUpdateFileContentsResponseCreated(
+            decoded,
+          ))
+        Error(_) ->
+          Error(DecodeFailure(detail: "Failed to decode response body"))
+      }
+    }
+    404 -> {
+      use text <- result.try(text_body(resp.body))
+      case decode.decode_basic_error(text) {
+        Ok(decoded) ->
+          Ok(response_types.ReposCreateOrUpdateFileContentsResponseNotFound(
+            decoded,
+          ))
+        Error(_) ->
+          Error(DecodeFailure(detail: "Failed to decode response body"))
+      }
+    }
+    409 -> {
+      use text <- result.try(text_body(resp.body))
+      case
+        decode.decode_repos_create_or_update_file_contents_response_conflict(
+          text,
+        )
+      {
+        Ok(decoded) ->
+          Ok(response_types.ReposCreateOrUpdateFileContentsResponseConflict(
+            decoded,
+          ))
+        Error(_) ->
+          Error(DecodeFailure(detail: "Failed to decode response body"))
+      }
+    }
+    422 -> {
+      use text <- result.try(text_body(resp.body))
+      case decode.decode_validation_error(text) {
+        Ok(decoded) ->
+          Ok(
+            response_types.ReposCreateOrUpdateFileContentsResponseUnprocessableEntity(
+              decoded,
+            ),
+          )
+        Error(_) ->
+          Error(DecodeFailure(detail: "Failed to decode response body"))
+      }
+    }
+    _ ->
+      Error(UnexpectedStatus(
+        status: resp.status,
+        headers: resp.headers,
+        body: resp.body,
+      ))
+  }
+}
+
+/// Request-object wrapper. Delegates to repos_create_or_update_file_contents with fields unpacked from the request record.
+pub fn repos_create_or_update_file_contents_with_request(
+  send send: transport.Send,
+  request request: request_types.ReposCreateOrUpdateFileContentsRequest,
+) -> Result(response_types.ReposCreateOrUpdateFileContentsResponse, ClientError) {
+  repos_create_or_update_file_contents(
+    send,
+    request.owner,
+    request.repo,
+    request.path_2,
+    request.body,
+  )
+}
+
+/// Async request-object wrapper. Delegates to repos_create_or_update_file_contents_async with fields unpacked from the request record.
+pub fn repos_create_or_update_file_contents_with_request_async(
+  async_send async_send: transport.AsyncSend,
+  request request: request_types.ReposCreateOrUpdateFileContentsRequest,
+) -> transport.Async(
+  Result(response_types.ReposCreateOrUpdateFileContentsResponse, ClientError),
+) {
+  repos_create_or_update_file_contents_async(
+    async_send,
+    request.owner,
+    request.repo,
+    request.path_2,
+    request.body,
+  )
+}
+
+/// Delete a file
+/// Deletes a file in a repository.
+///
+/// You can provide an additional `committer` parameter, which is an object containing information about the committer. Or, you can provide an `author` parameter, which is an object containing information about the author.
+///
+/// The `author` section is optional and is filled in with the `committer` information if omitted. If the `committer` information is omitted, the authenticated user's information is used.
+///
+/// You must provide values for both `name` and `email`, whether you choose to use `author` or `committer`. Otherwise, you'll receive a `422` status code.
+///
+/// > [!NOTE]
+/// > If you use this endpoint and the "[Create or update file contents](https://docs.github.com/rest/repos/contents/#create-or-update-file-contents)" endpoint in parallel, the concurrent requests will conflict and you will receive errors. You must use these endpoints serially instead.
+pub fn repos_delete_file(
+  send send: transport.Send,
+  owner owner: String,
+  repo repo: String,
+  path_2 path_2: String,
+  body body: types.ReposDeleteFileRequest,
+) -> Result(response_types.ReposDeleteFileResponse, ClientError) {
+  use req <- result.try(build_repos_delete_file_request(
+    owner: owner,
+    repo: repo,
+    path_2: path_2,
+    body: body,
+  ))
+  use resp <- result.try(
+    send(req)
+    |> result.map_error(TransportError),
+  )
+  decode_repos_delete_file_response(resp)
+}
+
+/// Async transport variant of repos_delete_file. Resolves to the typed response or a client error.
+pub fn repos_delete_file_async(
+  async_send async_send: transport.AsyncSend,
+  owner owner: String,
+  repo repo: String,
+  path_2 path_2: String,
+  body body: types.ReposDeleteFileRequest,
+) -> transport.Async(
+  Result(response_types.ReposDeleteFileResponse, ClientError),
+) {
+  case
+    build_repos_delete_file_request(
+      owner: owner,
+      repo: repo,
+      path_2: path_2,
+      body: body,
+    )
+  {
+    Ok(req) ->
+      await_response(async_send(req), decode_repos_delete_file_response)
+    Error(error) -> transport.resolve(Error(error))
+  }
+}
+
+/// Build the transport request for repos_delete_file without sending it. Useful for testing and for adding custom transport middleware.
+pub fn build_repos_delete_file_request(
+  owner owner: String,
+  repo repo: String,
+  path_2 path_2: String,
+  body body: types.ReposDeleteFileRequest,
+) -> Result(transport.Request, ClientError) {
+  let path = "/repos/{owner}/{repo}/contents/{path}"
+  let path = string.replace(path, "{owner}", uri.percent_encode(owner))
+  let path = string.replace(path, "{repo}", uri.percent_encode(repo))
+  let path = string.replace(path, "{path}", uri.percent_encode(path_2))
+  let query = []
+  let headers = []
+  let body = transport.TextBody(encode.encode_repos_delete_file_request(body))
+  let headers = [#("content-type", "application/json"), ..headers]
+  Ok(
+    transport.Request(
+      method: transport.Delete,
+      base_url: Some(default_base_url()),
+      path: path,
+      query: query,
+      headers: headers,
+      body: body,
+      security: [],
+    ),
+  )
+}
+
+/// Decode a transport response into the typed response variant for repos_delete_file.
+pub fn decode_repos_delete_file_response(
+  resp: transport.Response,
+) -> Result(response_types.ReposDeleteFileResponse, ClientError) {
+  case resp.status {
+    200 -> {
+      use text <- result.try(text_body(resp.body))
+      case decode.decode_file_commit(text) {
+        Ok(decoded) -> Ok(response_types.ReposDeleteFileResponseOk(decoded))
+        Error(_) ->
+          Error(DecodeFailure(detail: "Failed to decode response body"))
+      }
+    }
+    404 -> {
+      use text <- result.try(text_body(resp.body))
+      case decode.decode_basic_error(text) {
+        Ok(decoded) ->
+          Ok(response_types.ReposDeleteFileResponseNotFound(decoded))
+        Error(_) ->
+          Error(DecodeFailure(detail: "Failed to decode response body"))
+      }
+    }
+    409 -> {
+      use text <- result.try(text_body(resp.body))
+      case decode.decode_basic_error(text) {
+        Ok(decoded) ->
+          Ok(response_types.ReposDeleteFileResponseConflict(decoded))
+        Error(_) ->
+          Error(DecodeFailure(detail: "Failed to decode response body"))
+      }
+    }
+    422 -> {
+      use text <- result.try(text_body(resp.body))
+      case decode.decode_validation_error(text) {
+        Ok(decoded) ->
+          Ok(response_types.ReposDeleteFileResponseUnprocessableEntity(decoded))
+        Error(_) ->
+          Error(DecodeFailure(detail: "Failed to decode response body"))
+      }
+    }
+    503 -> {
+      use text <- result.try(text_body(resp.body))
+      case decode.decode_repos_delete_file_response_service_unavailable(text) {
+        Ok(decoded) ->
+          Ok(response_types.ReposDeleteFileResponseServiceUnavailable(decoded))
+        Error(_) ->
+          Error(DecodeFailure(detail: "Failed to decode response body"))
+      }
+    }
+    _ ->
+      Error(UnexpectedStatus(
+        status: resp.status,
+        headers: resp.headers,
+        body: resp.body,
+      ))
+  }
+}
+
+/// Request-object wrapper. Delegates to repos_delete_file with fields unpacked from the request record.
+pub fn repos_delete_file_with_request(
+  send send: transport.Send,
+  request request: request_types.ReposDeleteFileRequest,
+) -> Result(response_types.ReposDeleteFileResponse, ClientError) {
+  repos_delete_file(
+    send,
+    request.owner,
+    request.repo,
+    request.path_2,
+    request.body,
+  )
+}
+
+/// Async request-object wrapper. Delegates to repos_delete_file_async with fields unpacked from the request record.
+pub fn repos_delete_file_with_request_async(
+  async_send async_send: transport.AsyncSend,
+  request request: request_types.ReposDeleteFileRequest,
+) -> transport.Async(
+  Result(response_types.ReposDeleteFileResponse, ClientError),
+) {
+  repos_delete_file_async(
+    async_send,
+    request.owner,
+    request.repo,
+    request.path_2,
+    request.body,
+  )
+}
+
 /// Get an issue comment
 /// You can use the REST API to get comments on issues and pull requests. Every pull request is an issue, but not every issue is a pull request.
 ///

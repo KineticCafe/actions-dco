@@ -6,6 +6,35 @@ import gleam/json
 import gleam/list
 import gleam/option.{type Option}
 
+pub fn encode_content_directory_item_type_json(
+  value: types.ContentDirectoryItemType,
+) -> json.Json {
+  let str = case value {
+    types.ContentDirectoryItemTypeDir -> "dir"
+    types.ContentDirectoryItemTypeFile -> "file"
+    types.ContentDirectoryItemTypeSubmodule -> "submodule"
+    types.ContentDirectoryItemTypeSymlink -> "symlink"
+  }
+  json.string(str)
+}
+
+pub fn encode_content_directory_item_type(
+  value: types.ContentDirectoryItemType,
+) -> String {
+  encode_content_directory_item_type_json(value) |> json.to_string()
+}
+
+pub fn encode_content_directory_item_type_to_string(
+  value: types.ContentDirectoryItemType,
+) -> String {
+  case value {
+    types.ContentDirectoryItemTypeDir -> "dir"
+    types.ContentDirectoryItemTypeFile -> "file"
+    types.ContentDirectoryItemTypeSubmodule -> "submodule"
+    types.ContentDirectoryItemTypeSymlink -> "symlink"
+  }
+}
+
 pub fn encode_commit_comparison_status_json(
   value: types.CommitComparisonStatus,
 ) -> json.Json {
@@ -214,6 +243,447 @@ pub fn encode_commit_stats(value: types.CommitStats) -> String {
   encode_commit_stats_json(value) |> json.to_string()
 }
 
+pub fn encode_content_directory_item_json(
+  value: types.ContentDirectoryItem,
+) -> json.Json {
+  json.object(
+    list.flatten([
+      [#("_links", encode_content_directory_item_links_json(value.links))],
+      case value.content {
+        option.None -> []
+        option.Some(x) -> [#("content", json.string(x))]
+      },
+      [#("download_url", json.nullable(value.download_url, json.string))],
+      [#("git_url", json.nullable(value.git_url, json.string))],
+      [#("html_url", json.nullable(value.html_url, json.string))],
+      [#("name", json.string(value.name))],
+      [#("path", json.string(value.path))],
+      [#("sha", json.string(value.sha))],
+      [#("size", json.int(value.size))],
+      [#("type", encode_content_directory_item_type_json(value.type_))],
+      [#("url", json.string(value.url))],
+    ]),
+  )
+}
+
+pub fn encode_content_directory_item(
+  value: types.ContentDirectoryItem,
+) -> String {
+  encode_content_directory_item_json(value) |> json.to_string()
+}
+
+pub fn encode_content_directory_item_links_json(
+  value: types.ContentDirectoryItemLinks,
+) -> json.Json {
+  json.object([
+    #("git", json.nullable(value.git, json.string)),
+    #("html", json.nullable(value.html, json.string)),
+    #("self", json.string(value.self)),
+  ])
+}
+
+pub fn encode_content_directory_item_links(
+  value: types.ContentDirectoryItemLinks,
+) -> String {
+  encode_content_directory_item_links_json(value) |> json.to_string()
+}
+
+pub fn encode_content_file_links_json(
+  value: types.ContentFileLinks,
+) -> json.Json {
+  json.object([
+    #("git", json.nullable(value.git, json.string)),
+    #("html", json.nullable(value.html, json.string)),
+    #("self", json.string(value.self)),
+  ])
+}
+
+pub fn encode_content_file_links(value: types.ContentFileLinks) -> String {
+  encode_content_file_links_json(value) |> json.to_string()
+}
+
+pub fn encode_content_submodule_links_json(
+  value: types.ContentSubmoduleLinks,
+) -> json.Json {
+  json.object([
+    #("git", json.nullable(value.git, json.string)),
+    #("html", json.nullable(value.html, json.string)),
+    #("self", json.string(value.self)),
+  ])
+}
+
+pub fn encode_content_submodule_links(
+  value: types.ContentSubmoduleLinks,
+) -> String {
+  encode_content_submodule_links_json(value) |> json.to_string()
+}
+
+pub fn encode_content_symlink_links_json(
+  value: types.ContentSymlinkLinks,
+) -> json.Json {
+  json.object([
+    #("git", json.nullable(value.git, json.string)),
+    #("html", json.nullable(value.html, json.string)),
+    #("self", json.string(value.self)),
+  ])
+}
+
+pub fn encode_content_symlink_links(
+  value: types.ContentSymlinkLinks,
+) -> String {
+  encode_content_symlink_links_json(value) |> json.to_string()
+}
+
+pub fn encode_content_tree_entries_json(
+  value: List(types.ContentTreeEntriesItem),
+) -> json.Json {
+  json.array(value, encode_content_tree_entries_item_json)
+}
+
+pub fn encode_content_tree_entries(
+  value: List(types.ContentTreeEntriesItem),
+) -> String {
+  encode_content_tree_entries_json(value) |> json.to_string()
+}
+
+pub fn encode_content_tree_entries_item_json(
+  value: types.ContentTreeEntriesItem,
+) -> json.Json {
+  json.object([
+    #("_links", encode_content_tree_entries_item_links_json(value.links)),
+    #("download_url", json.nullable(value.download_url, json.string)),
+    #("git_url", json.nullable(value.git_url, json.string)),
+    #("html_url", json.nullable(value.html_url, json.string)),
+    #("name", json.string(value.name)),
+    #("path", json.string(value.path)),
+    #("sha", json.string(value.sha)),
+    #("size", json.int(value.size)),
+    #("type", json.string(value.type_)),
+    #("url", json.string(value.url)),
+  ])
+}
+
+pub fn encode_content_tree_entries_item(
+  value: types.ContentTreeEntriesItem,
+) -> String {
+  encode_content_tree_entries_item_json(value) |> json.to_string()
+}
+
+pub fn encode_content_tree_entries_item_links_json(
+  value: types.ContentTreeEntriesItemLinks,
+) -> json.Json {
+  json.object([
+    #("git", json.nullable(value.git, json.string)),
+    #("html", json.nullable(value.html, json.string)),
+    #("self", json.string(value.self)),
+  ])
+}
+
+pub fn encode_content_tree_entries_item_links(
+  value: types.ContentTreeEntriesItemLinks,
+) -> String {
+  encode_content_tree_entries_item_links_json(value) |> json.to_string()
+}
+
+pub fn encode_content_tree_links_json(
+  value: types.ContentTreeLinks,
+) -> json.Json {
+  json.object([
+    #("git", json.nullable(value.git, json.string)),
+    #("html", json.nullable(value.html, json.string)),
+    #("self", json.string(value.self)),
+  ])
+}
+
+pub fn encode_content_tree_links(value: types.ContentTreeLinks) -> String {
+  encode_content_tree_links_json(value) |> json.to_string()
+}
+
+pub fn encode_file_commit_commit_json(
+  value: types.FileCommitCommit,
+) -> json.Json {
+  json.object(
+    list.flatten([
+      case value.author {
+        option.None -> []
+        option.Some(x) -> [
+          #("author", encode_file_commit_commit_author_json(x)),
+        ]
+      },
+      case value.committer {
+        option.None -> []
+        option.Some(x) -> [
+          #("committer", encode_file_commit_commit_committer_json(x)),
+        ]
+      },
+      case value.html_url {
+        option.None -> []
+        option.Some(x) -> [#("html_url", json.string(x))]
+      },
+      case value.message {
+        option.None -> []
+        option.Some(x) -> [#("message", json.string(x))]
+      },
+      case value.node_id {
+        option.None -> []
+        option.Some(x) -> [#("node_id", json.string(x))]
+      },
+      case value.parents {
+        option.None -> []
+        option.Some(x) -> [
+          #("parents", encode_file_commit_commit_parents_json(x)),
+        ]
+      },
+      case value.sha {
+        option.None -> []
+        option.Some(x) -> [#("sha", json.string(x))]
+      },
+      case value.tree {
+        option.None -> []
+        option.Some(x) -> [#("tree", encode_file_commit_commit_tree_json(x))]
+      },
+      case value.url {
+        option.None -> []
+        option.Some(x) -> [#("url", json.string(x))]
+      },
+      case value.verification {
+        option.None -> []
+        option.Some(x) -> [
+          #("verification", encode_file_commit_commit_verification_json(x)),
+        ]
+      },
+    ]),
+  )
+}
+
+pub fn encode_file_commit_commit(value: types.FileCommitCommit) -> String {
+  encode_file_commit_commit_json(value) |> json.to_string()
+}
+
+pub fn encode_file_commit_commit_author_json(
+  value: types.FileCommitCommitAuthor,
+) -> json.Json {
+  json.object(
+    list.flatten([
+      case value.date {
+        option.None -> []
+        option.Some(x) -> [#("date", json.string(x))]
+      },
+      case value.email {
+        option.None -> []
+        option.Some(x) -> [#("email", json.string(x))]
+      },
+      case value.name {
+        option.None -> []
+        option.Some(x) -> [#("name", json.string(x))]
+      },
+    ]),
+  )
+}
+
+pub fn encode_file_commit_commit_author(
+  value: types.FileCommitCommitAuthor,
+) -> String {
+  encode_file_commit_commit_author_json(value) |> json.to_string()
+}
+
+pub fn encode_file_commit_commit_committer_json(
+  value: types.FileCommitCommitCommitter,
+) -> json.Json {
+  json.object(
+    list.flatten([
+      case value.date {
+        option.None -> []
+        option.Some(x) -> [#("date", json.string(x))]
+      },
+      case value.email {
+        option.None -> []
+        option.Some(x) -> [#("email", json.string(x))]
+      },
+      case value.name {
+        option.None -> []
+        option.Some(x) -> [#("name", json.string(x))]
+      },
+    ]),
+  )
+}
+
+pub fn encode_file_commit_commit_committer(
+  value: types.FileCommitCommitCommitter,
+) -> String {
+  encode_file_commit_commit_committer_json(value) |> json.to_string()
+}
+
+pub fn encode_file_commit_commit_parents_json(
+  value: List(types.FileCommitCommitParentsItem),
+) -> json.Json {
+  json.array(value, encode_file_commit_commit_parents_item_json)
+}
+
+pub fn encode_file_commit_commit_parents(
+  value: List(types.FileCommitCommitParentsItem),
+) -> String {
+  encode_file_commit_commit_parents_json(value) |> json.to_string()
+}
+
+pub fn encode_file_commit_commit_parents_item_json(
+  value: types.FileCommitCommitParentsItem,
+) -> json.Json {
+  json.object(
+    list.flatten([
+      case value.html_url {
+        option.None -> []
+        option.Some(x) -> [#("html_url", json.string(x))]
+      },
+      case value.sha {
+        option.None -> []
+        option.Some(x) -> [#("sha", json.string(x))]
+      },
+      case value.url {
+        option.None -> []
+        option.Some(x) -> [#("url", json.string(x))]
+      },
+    ]),
+  )
+}
+
+pub fn encode_file_commit_commit_parents_item(
+  value: types.FileCommitCommitParentsItem,
+) -> String {
+  encode_file_commit_commit_parents_item_json(value) |> json.to_string()
+}
+
+pub fn encode_file_commit_commit_tree_json(
+  value: types.FileCommitCommitTree,
+) -> json.Json {
+  json.object(
+    list.flatten([
+      case value.sha {
+        option.None -> []
+        option.Some(x) -> [#("sha", json.string(x))]
+      },
+      case value.url {
+        option.None -> []
+        option.Some(x) -> [#("url", json.string(x))]
+      },
+    ]),
+  )
+}
+
+pub fn encode_file_commit_commit_tree(
+  value: types.FileCommitCommitTree,
+) -> String {
+  encode_file_commit_commit_tree_json(value) |> json.to_string()
+}
+
+pub fn encode_file_commit_commit_verification_json(
+  value: types.FileCommitCommitVerification,
+) -> json.Json {
+  json.object(
+    list.flatten([
+      [#("payload", json.nullable(value.payload, json.string))],
+      case value.reason {
+        option.None -> []
+        option.Some(x) -> [#("reason", json.string(x))]
+      },
+      [#("signature", json.nullable(value.signature, json.string))],
+      case value.verified {
+        option.None -> []
+        option.Some(x) -> [#("verified", json.bool(x))]
+      },
+      [#("verified_at", json.nullable(value.verified_at, json.string))],
+    ]),
+  )
+}
+
+pub fn encode_file_commit_commit_verification(
+  value: types.FileCommitCommitVerification,
+) -> String {
+  encode_file_commit_commit_verification_json(value) |> json.to_string()
+}
+
+pub fn encode_file_commit_content_json(
+  value: types.FileCommitContent,
+) -> json.Json {
+  json.object(
+    list.flatten([
+      case value.links {
+        option.None -> []
+        option.Some(x) -> [
+          #("_links", encode_file_commit_content_links_json(x)),
+        ]
+      },
+      case value.download_url {
+        option.None -> []
+        option.Some(x) -> [#("download_url", json.string(x))]
+      },
+      case value.git_url {
+        option.None -> []
+        option.Some(x) -> [#("git_url", json.string(x))]
+      },
+      case value.html_url {
+        option.None -> []
+        option.Some(x) -> [#("html_url", json.string(x))]
+      },
+      case value.name {
+        option.None -> []
+        option.Some(x) -> [#("name", json.string(x))]
+      },
+      case value.path {
+        option.None -> []
+        option.Some(x) -> [#("path", json.string(x))]
+      },
+      case value.sha {
+        option.None -> []
+        option.Some(x) -> [#("sha", json.string(x))]
+      },
+      case value.size {
+        option.None -> []
+        option.Some(x) -> [#("size", json.int(x))]
+      },
+      case value.type_ {
+        option.None -> []
+        option.Some(x) -> [#("type", json.string(x))]
+      },
+      case value.url {
+        option.None -> []
+        option.Some(x) -> [#("url", json.string(x))]
+      },
+    ]),
+  )
+}
+
+pub fn encode_file_commit_content(value: types.FileCommitContent) -> String {
+  encode_file_commit_content_json(value) |> json.to_string()
+}
+
+pub fn encode_file_commit_content_links_json(
+  value: types.FileCommitContentLinks,
+) -> json.Json {
+  json.object(
+    list.flatten([
+      case value.git {
+        option.None -> []
+        option.Some(x) -> [#("git", json.string(x))]
+      },
+      case value.html {
+        option.None -> []
+        option.Some(x) -> [#("html", json.string(x))]
+      },
+      case value.self {
+        option.None -> []
+        option.Some(x) -> [#("self", json.string(x))]
+      },
+    ]),
+  )
+}
+
+pub fn encode_file_commit_content_links(
+  value: types.FileCommitContentLinks,
+) -> String {
+  encode_file_commit_content_links_json(value) |> json.to_string()
+}
+
 pub fn encode_integration_owner_json(
   value: types.IntegrationOwner,
 ) -> json.Json {
@@ -388,6 +858,350 @@ pub fn encode_repos_compare_commits_response_service_unavailable(
   value: types.ReposCompareCommitsResponseServiceUnavailable,
 ) -> String {
   encode_repos_compare_commits_response_service_unavailable_json(value)
+  |> json.to_string()
+}
+
+pub fn encode_repos_create_or_update_file_contents_request_json(
+  value: types.ReposCreateOrUpdateFileContentsRequest,
+) -> json.Json {
+  json.object(
+    list.flatten([
+      case value.author {
+        option.None -> []
+        option.Some(x) -> [
+          #(
+            "author",
+            encode_repos_create_or_update_file_contents_request_author_json(x),
+          ),
+        ]
+      },
+      case value.branch {
+        option.None -> []
+        option.Some(x) -> [#("branch", json.string(x))]
+      },
+      case value.committer {
+        option.None -> []
+        option.Some(x) -> [
+          #(
+            "committer",
+            encode_repos_create_or_update_file_contents_request_committer_json(
+              x,
+            ),
+          ),
+        ]
+      },
+      [#("content", json.string(value.content))],
+      [#("message", json.string(value.message))],
+      case value.sha {
+        option.None -> []
+        option.Some(x) -> [#("sha", json.string(x))]
+      },
+    ]),
+  )
+}
+
+pub fn encode_repos_create_or_update_file_contents_request(
+  value: types.ReposCreateOrUpdateFileContentsRequest,
+) -> String {
+  encode_repos_create_or_update_file_contents_request_json(value)
+  |> json.to_string()
+}
+
+pub fn encode_repos_create_or_update_file_contents_request_author_json(
+  value: types.ReposCreateOrUpdateFileContentsRequestAuthor,
+) -> json.Json {
+  json.object(
+    list.flatten([
+      case value.date {
+        option.None -> []
+        option.Some(x) -> [#("date", json.string(x))]
+      },
+      [#("email", json.string(value.email))],
+      [#("name", json.string(value.name))],
+    ]),
+  )
+}
+
+pub fn encode_repos_create_or_update_file_contents_request_author(
+  value: types.ReposCreateOrUpdateFileContentsRequestAuthor,
+) -> String {
+  encode_repos_create_or_update_file_contents_request_author_json(value)
+  |> json.to_string()
+}
+
+pub fn encode_repos_create_or_update_file_contents_request_committer_json(
+  value: types.ReposCreateOrUpdateFileContentsRequestCommitter,
+) -> json.Json {
+  json.object(
+    list.flatten([
+      case value.date {
+        option.None -> []
+        option.Some(x) -> [#("date", json.string(x))]
+      },
+      [#("email", json.string(value.email))],
+      [#("name", json.string(value.name))],
+    ]),
+  )
+}
+
+pub fn encode_repos_create_or_update_file_contents_request_committer(
+  value: types.ReposCreateOrUpdateFileContentsRequestCommitter,
+) -> String {
+  encode_repos_create_or_update_file_contents_request_committer_json(value)
+  |> json.to_string()
+}
+
+pub fn encode_repos_create_or_update_file_contents_response_conflict_json(
+  value: types.ReposCreateOrUpdateFileContentsResponseConflict,
+) -> json.Json {
+  case value {
+    types.ReposCreateOrUpdateFileContentsResponseConflictBasicError(inner) ->
+      encode_basic_error_json(inner)
+    types.ReposCreateOrUpdateFileContentsResponseConflictRepositoryRuleViolationError(
+      inner,
+    ) -> encode_repository_rule_violation_error_json(inner)
+  }
+}
+
+pub fn encode_repos_create_or_update_file_contents_response_conflict(
+  value: types.ReposCreateOrUpdateFileContentsResponseConflict,
+) -> String {
+  encode_repos_create_or_update_file_contents_response_conflict_json(value)
+  |> json.to_string()
+}
+
+pub fn encode_repos_delete_file_request_json(
+  value: types.ReposDeleteFileRequest,
+) -> json.Json {
+  json.object(
+    list.flatten([
+      case value.author {
+        option.None -> []
+        option.Some(x) -> [
+          #("author", encode_repos_delete_file_request_author_json(x)),
+        ]
+      },
+      case value.branch {
+        option.None -> []
+        option.Some(x) -> [#("branch", json.string(x))]
+      },
+      case value.committer {
+        option.None -> []
+        option.Some(x) -> [
+          #("committer", encode_repos_delete_file_request_committer_json(x)),
+        ]
+      },
+      [#("message", json.string(value.message))],
+      [#("sha", json.string(value.sha))],
+    ]),
+  )
+}
+
+pub fn encode_repos_delete_file_request(
+  value: types.ReposDeleteFileRequest,
+) -> String {
+  encode_repos_delete_file_request_json(value) |> json.to_string()
+}
+
+pub fn encode_repos_delete_file_request_author_json(
+  value: types.ReposDeleteFileRequestAuthor,
+) -> json.Json {
+  json.object(
+    list.flatten([
+      case value.email {
+        option.None -> []
+        option.Some(x) -> [#("email", json.string(x))]
+      },
+      case value.name {
+        option.None -> []
+        option.Some(x) -> [#("name", json.string(x))]
+      },
+    ]),
+  )
+}
+
+pub fn encode_repos_delete_file_request_author(
+  value: types.ReposDeleteFileRequestAuthor,
+) -> String {
+  encode_repos_delete_file_request_author_json(value) |> json.to_string()
+}
+
+pub fn encode_repos_delete_file_request_committer_json(
+  value: types.ReposDeleteFileRequestCommitter,
+) -> json.Json {
+  json.object(
+    list.flatten([
+      case value.email {
+        option.None -> []
+        option.Some(x) -> [#("email", json.string(x))]
+      },
+      case value.name {
+        option.None -> []
+        option.Some(x) -> [#("name", json.string(x))]
+      },
+    ]),
+  )
+}
+
+pub fn encode_repos_delete_file_request_committer(
+  value: types.ReposDeleteFileRequestCommitter,
+) -> String {
+  encode_repos_delete_file_request_committer_json(value) |> json.to_string()
+}
+
+pub fn encode_repos_delete_file_response_service_unavailable_json(
+  value: types.ReposDeleteFileResponseServiceUnavailable,
+) -> json.Json {
+  json.object(
+    list.flatten([
+      case value.code {
+        option.None -> []
+        option.Some(x) -> [#("code", json.string(x))]
+      },
+      case value.documentation_url {
+        option.None -> []
+        option.Some(x) -> [#("documentation_url", json.string(x))]
+      },
+      case value.message {
+        option.None -> []
+        option.Some(x) -> [#("message", json.string(x))]
+      },
+    ]),
+  )
+}
+
+pub fn encode_repos_delete_file_response_service_unavailable(
+  value: types.ReposDeleteFileResponseServiceUnavailable,
+) -> String {
+  encode_repos_delete_file_response_service_unavailable_json(value)
+  |> json.to_string()
+}
+
+pub fn encode_repos_get_content_response_ok_json(
+  value: types.ReposGetContentResponseOk,
+) -> json.Json {
+  case value {
+    types.ReposGetContentResponseOkContentDirectory(inner) ->
+      encode_content_directory_json(inner)
+    types.ReposGetContentResponseOkContentFile(inner) ->
+      encode_content_file_json(inner)
+    types.ReposGetContentResponseOkContentSymlink(inner) ->
+      encode_content_symlink_json(inner)
+    types.ReposGetContentResponseOkContentSubmodule(inner) ->
+      encode_content_submodule_json(inner)
+  }
+}
+
+pub fn encode_repos_get_content_response_ok(
+  value: types.ReposGetContentResponseOk,
+) -> String {
+  encode_repos_get_content_response_ok_json(value) |> json.to_string()
+}
+
+pub fn encode_repository_rule_violation_error_metadata_json(
+  value: types.RepositoryRuleViolationErrorMetadata,
+) -> json.Json {
+  json.object(
+    list.flatten([
+      case value.secret_scanning {
+        option.None -> []
+        option.Some(x) -> [
+          #(
+            "secret_scanning",
+            encode_repository_rule_violation_error_metadata_secret_scanning_json(
+              x,
+            ),
+          ),
+        ]
+      },
+    ]),
+  )
+}
+
+pub fn encode_repository_rule_violation_error_metadata(
+  value: types.RepositoryRuleViolationErrorMetadata,
+) -> String {
+  encode_repository_rule_violation_error_metadata_json(value)
+  |> json.to_string()
+}
+
+pub fn encode_repository_rule_violation_error_metadata_secret_scanning_json(
+  value: types.RepositoryRuleViolationErrorMetadataSecretScanning,
+) -> json.Json {
+  json.object(
+    list.flatten([
+      case value.bypass_placeholders {
+        option.None -> []
+        option.Some(x) -> [
+          #(
+            "bypass_placeholders",
+            encode_repository_rule_violation_error_metadata_secret_scanning_bypass_placeholders_json(
+              x,
+            ),
+          ),
+        ]
+      },
+    ]),
+  )
+}
+
+pub fn encode_repository_rule_violation_error_metadata_secret_scanning(
+  value: types.RepositoryRuleViolationErrorMetadataSecretScanning,
+) -> String {
+  encode_repository_rule_violation_error_metadata_secret_scanning_json(value)
+  |> json.to_string()
+}
+
+pub fn encode_repository_rule_violation_error_metadata_secret_scanning_bypass_placeholders_json(
+  value: List(
+    types.RepositoryRuleViolationErrorMetadataSecretScanningBypassPlaceholdersItem,
+  ),
+) -> json.Json {
+  json.array(
+    value,
+    encode_repository_rule_violation_error_metadata_secret_scanning_bypass_placeholders_item_json,
+  )
+}
+
+pub fn encode_repository_rule_violation_error_metadata_secret_scanning_bypass_placeholders(
+  value: List(
+    types.RepositoryRuleViolationErrorMetadataSecretScanningBypassPlaceholdersItem,
+  ),
+) -> String {
+  encode_repository_rule_violation_error_metadata_secret_scanning_bypass_placeholders_json(
+    value,
+  )
+  |> json.to_string()
+}
+
+pub fn encode_repository_rule_violation_error_metadata_secret_scanning_bypass_placeholders_item_json(
+  value: types.RepositoryRuleViolationErrorMetadataSecretScanningBypassPlaceholdersItem,
+) -> json.Json {
+  json.object(
+    list.flatten([
+      case value.placeholder_id {
+        option.None -> []
+        option.Some(x) -> [
+          #(
+            "placeholder_id",
+            encode_secret_scanning_push_protection_bypass_placeholder_id_json(x),
+          ),
+        ]
+      },
+      case value.token_type {
+        option.None -> []
+        option.Some(x) -> [#("token_type", json.string(x))]
+      },
+    ]),
+  )
+}
+
+pub fn encode_repository_rule_violation_error_metadata_secret_scanning_bypass_placeholders_item(
+  value: types.RepositoryRuleViolationErrorMetadataSecretScanningBypassPlaceholdersItem,
+) -> String {
+  encode_repository_rule_violation_error_metadata_secret_scanning_bypass_placeholders_item_json(
+    value,
+  )
   |> json.to_string()
 }
 
@@ -626,6 +1440,124 @@ pub fn encode_commit_comparison(value: types.CommitComparison) -> String {
   encode_commit_comparison_json(value) |> json.to_string()
 }
 
+pub fn encode_content_directory_json(
+  value: List(types.ContentDirectoryItem),
+) -> json.Json {
+  json.array(value, encode_content_directory_item_json)
+}
+
+pub fn encode_content_directory(
+  value: List(types.ContentDirectoryItem),
+) -> String {
+  encode_content_directory_json(value) |> json.to_string()
+}
+
+pub fn encode_content_file_json(value: types.ContentFile) -> json.Json {
+  json.object(
+    list.flatten([
+      [#("_links", encode_content_file_links_json(value.links))],
+      [#("content", json.string(value.content))],
+      [#("download_url", json.nullable(value.download_url, json.string))],
+      [#("encoding", json.string(value.encoding))],
+      [#("git_url", json.nullable(value.git_url, json.string))],
+      [#("html_url", json.nullable(value.html_url, json.string))],
+      [#("name", json.string(value.name))],
+      [#("path", json.string(value.path))],
+      [#("sha", json.string(value.sha))],
+      [#("size", json.int(value.size))],
+      case value.submodule_git_url {
+        option.None -> []
+        option.Some(x) -> [#("submodule_git_url", json.string(x))]
+      },
+      case value.target {
+        option.None -> []
+        option.Some(x) -> [#("target", json.string(x))]
+      },
+      [#("type", json.string("file"))],
+      [#("url", json.string(value.url))],
+    ]),
+  )
+}
+
+pub fn encode_content_file(value: types.ContentFile) -> String {
+  encode_content_file_json(value) |> json.to_string()
+}
+
+pub fn encode_content_submodule_json(
+  value: types.ContentSubmodule,
+) -> json.Json {
+  json.object([
+    #("_links", encode_content_submodule_links_json(value.links)),
+    #("download_url", json.nullable(value.download_url, json.string)),
+    #("git_url", json.nullable(value.git_url, json.string)),
+    #("html_url", json.nullable(value.html_url, json.string)),
+    #("name", json.string(value.name)),
+    #("path", json.string(value.path)),
+    #("sha", json.string(value.sha)),
+    #("size", json.int(value.size)),
+    #("submodule_git_url", json.string(value.submodule_git_url)),
+    #("type", json.string("submodule")),
+    #("url", json.string(value.url)),
+  ])
+}
+
+pub fn encode_content_submodule(value: types.ContentSubmodule) -> String {
+  encode_content_submodule_json(value) |> json.to_string()
+}
+
+pub fn encode_content_symlink_json(value: types.ContentSymlink) -> json.Json {
+  json.object([
+    #("_links", encode_content_symlink_links_json(value.links)),
+    #("download_url", json.nullable(value.download_url, json.string)),
+    #("git_url", json.nullable(value.git_url, json.string)),
+    #("html_url", json.nullable(value.html_url, json.string)),
+    #("name", json.string(value.name)),
+    #("path", json.string(value.path)),
+    #("sha", json.string(value.sha)),
+    #("size", json.int(value.size)),
+    #("target", json.string(value.target)),
+    #("type", json.string("symlink")),
+    #("url", json.string(value.url)),
+  ])
+}
+
+pub fn encode_content_symlink(value: types.ContentSymlink) -> String {
+  encode_content_symlink_json(value) |> json.to_string()
+}
+
+pub fn encode_content_tree_json(value: types.ContentTree) -> json.Json {
+  json.object(
+    list.flatten([
+      [#("_links", encode_content_tree_links_json(value.links))],
+      case value.content {
+        option.None -> []
+        option.Some(x) -> [#("content", json.string(x))]
+      },
+      [#("download_url", json.nullable(value.download_url, json.string))],
+      case value.encoding {
+        option.None -> []
+        option.Some(x) -> [#("encoding", json.string(x))]
+      },
+      case value.entries {
+        option.None -> []
+        option.Some(x) -> [#("entries", encode_content_tree_entries_json(x))]
+      },
+      [#("git_url", json.nullable(value.git_url, json.string))],
+      [#("html_url", json.nullable(value.html_url, json.string))],
+      [#("name", json.string(value.name))],
+      [#("path", json.string(value.path))],
+      [#("sha", json.string(value.sha))],
+      [#("size", json.int(value.size))],
+      [#("type", json.string(value.type_))],
+      [#("url", json.string(value.url))],
+    ]),
+  )
+}
+
+pub fn encode_content_tree(value: types.ContentTree) -> String {
+  encode_content_tree_json(value) |> json.to_string()
+}
+
 pub fn encode_diff_entry_json(value: types.DiffEntry) -> json.Json {
   json.object(
     list.flatten([
@@ -679,6 +1611,17 @@ pub fn encode_enterprise_json(value: types.Enterprise) -> json.Json {
 
 pub fn encode_enterprise(value: types.Enterprise) -> String {
   encode_enterprise_json(value) |> json.to_string()
+}
+
+pub fn encode_file_commit_json(value: types.FileCommit) -> json.Json {
+  json.object([
+    #("commit", encode_file_commit_commit_json(value.commit)),
+    #("content", json.nullable(value.content, encode_file_commit_content_json)),
+  ])
+}
+
+pub fn encode_file_commit(value: types.FileCommit) -> String {
+  encode_file_commit_json(value) |> json.to_string()
 }
 
 pub fn encode_git_user_json(value: types.GitUser) -> json.Json {
@@ -840,6 +1783,52 @@ pub fn encode_reaction_rollup_json(value: types.ReactionRollup) -> json.Json {
 
 pub fn encode_reaction_rollup(value: types.ReactionRollup) -> String {
   encode_reaction_rollup_json(value) |> json.to_string()
+}
+
+pub fn encode_repository_rule_violation_error_json(
+  value: types.RepositoryRuleViolationError,
+) -> json.Json {
+  json.object(
+    list.flatten([
+      case value.documentation_url {
+        option.None -> []
+        option.Some(x) -> [#("documentation_url", json.string(x))]
+      },
+      case value.message {
+        option.None -> []
+        option.Some(x) -> [#("message", json.string(x))]
+      },
+      case value.metadata {
+        option.None -> []
+        option.Some(x) -> [
+          #("metadata", encode_repository_rule_violation_error_metadata_json(x)),
+        ]
+      },
+      case value.status {
+        option.None -> []
+        option.Some(x) -> [#("status", json.string(x))]
+      },
+    ]),
+  )
+}
+
+pub fn encode_repository_rule_violation_error(
+  value: types.RepositoryRuleViolationError,
+) -> String {
+  encode_repository_rule_violation_error_json(value) |> json.to_string()
+}
+
+pub fn encode_secret_scanning_push_protection_bypass_placeholder_id_json(
+  value: String,
+) -> json.Json {
+  json.string(value)
+}
+
+pub fn encode_secret_scanning_push_protection_bypass_placeholder_id(
+  value: String,
+) -> String {
+  encode_secret_scanning_push_protection_bypass_placeholder_id_json(value)
+  |> json.to_string()
 }
 
 pub fn encode_simple_user_json(value: types.SimpleUser) -> json.Json {
