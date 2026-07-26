@@ -1,0 +1,10 @@
+# DCO check configuration for actions-dco itself.
+#
+# This will be read by `actions-dco` 3.2 from the `KineticCafe/actions-dco` main branch
+# and applied, overriding any inline configuration.
+
+comment = true
+
+[bots]
+policy = "well-known"
+categories = ["dependency-updaters", "ci-cd", "release"]
