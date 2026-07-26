@@ -26,7 +26,7 @@ import pontil
 
 pub const package_name = "KineticCafe/dco-check"
 
-pub const package_version = "3.1.0"
+pub const package_version = "3.2.0"
 
 /// Evaluate DCO status for a list of commits.
 ///

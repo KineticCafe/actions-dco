@@ -1,5 +1,19 @@
 # KineticCafe/actions-dco Changelog
 
+## 3.2.0 / 2026-07-25
+
+- Added a test case to detect regression of [#216][issue-216] or similar parsing
+  errors.
+
+- Modified the error handling of JSON response decoding to include a more
+  meaningful error.
+
+- Added support for reading `.github/dco-check.toml` or `.dco-check.toml` from
+  the repo root on the default branch. If present, this takes precedence over any
+  inline configuration (`config:`) key. This prevents a PR from "accidentally"
+  changing the DCO check policy. See the configuration documentation for
+  details.
+
 ## 3.1.1 / 2026-07-25
 
 - Resolved [#216][issue-216] with a fix to the OpenAPI generator `oaspec`.
