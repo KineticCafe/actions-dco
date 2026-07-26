@@ -224,13 +224,15 @@ fn find_comment_with_marker(
 
 /// Fetch the default branch config file, trying .github/dco-check.toml then .dco-check.toml.
 /// Returns None if neither file exists (404 on both). Returns Error if the file exists
-/// but cannot be decoded or parsed.
+/// but cannot be decoded or parsed. On success, returns the path and parsed config.
 pub fn fetch_default_branch_config(
   api_url api_url: String,
   token token: String,
   owner owner: String,
   repo repo: String,
-) -> Promise(Result(Option(config.DefaultBranchConfig), DcoCheckError)) {
+) -> Promise(
+  Result(Option(#(String, config.DefaultBranchConfig)), DcoCheckError),
+) {
   fetch_config_file(
     api_url:,
     token:,
@@ -240,7 +242,7 @@ pub fn fetch_default_branch_config(
   )
   |> promise.try_await(fn(result) {
     case result {
-      Some(cfg) -> promise.resolve(Ok(Some(cfg)))
+      Some(_) -> promise.resolve(Ok(result))
       None ->
         fetch_config_file(
           api_url:,
@@ -261,7 +263,9 @@ fn fetch_config_file(
   owner owner: String,
   repo repo: String,
   path path: String,
-) -> Promise(Result(Option(config.DefaultBranchConfig), DcoCheckError)) {
+) -> Promise(
+  Result(Option(#(String, config.DefaultBranchConfig)), DcoCheckError),
+) {
   let url = api_url <> "/repos/" <> owner <> "/" <> repo <> "/contents/" <> path
 
   use req <- pontil.try_sync(
@@ -287,7 +291,7 @@ fn fetch_config_file(
       case resp.status {
         200 ->
           case config.parse_default_branch_config(resp.body) {
-            Ok(cfg) -> Ok(Some(cfg))
+            Ok(cfg) -> Ok(Some(#(path, cfg)))
             Error(err) -> Error(err)
           }
         404 -> Ok(None)

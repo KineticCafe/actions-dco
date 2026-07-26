@@ -3,6 +3,9 @@ import dco_check/config.{
   Release, Strict, WellKnownBots,
 }
 import gleam/dict
+import gleam/list
+import gleam/string
+import take
 
 // --- empty config ---
 
@@ -231,4 +234,95 @@ pub fn standard_config_ref_only_also_rejected_test() {
   // Even if ref is the only key, config.parse rejects it
   let assert Error(_) =
     config.parse("ref = \"https://example.com/config.toml\"")
+}
+
+// --- config.describe ---
+
+pub fn describe_all_defaults_test() {
+  let #(lines, _stdout) =
+    take.with_stdout(fn() { config.describe(config.default()) })
+
+  // Every line should be flagged as default
+  list.each(lines, fn(line) {
+    assert string.contains(line, "(default)")
+  })
+
+  assert list.length(lines) == 5
+}
+
+pub fn describe_exempt_authors_test() {
+  let assert Ok(cfg) =
+    config.parse("exempt-authors = [\"joe@example.com\", \"@corp.dev\"]")
+  let #(lines, _stdout) = take.with_stdout(fn() { config.describe(cfg) })
+
+  let assert Ok(authors_line) =
+    list.find(lines, fn(l) { string.starts_with(l, "exempt-authors:") })
+  assert string.contains(authors_line, "joe@example.com")
+  assert string.contains(authors_line, "@corp.dev")
+  assert !string.contains(authors_line, "(default)")
+}
+
+pub fn describe_bot_policy_well_known_test() {
+  let assert Ok(cfg) =
+    config.parse(
+      "[bots]\npolicy = \"well-known\"\ncategories = [\"ci-cd\", \"release\"]",
+    )
+  let #(lines, _stdout) = take.with_stdout(fn() { config.describe(cfg) })
+
+  let assert Ok(bot_line) =
+    list.find(lines, fn(l) { string.starts_with(l, "bot-policy:") })
+  assert string.contains(bot_line, "well-known")
+  assert string.contains(bot_line, "ci-cd")
+  assert string.contains(bot_line, "release")
+  assert !string.contains(bot_line, "(default)")
+}
+
+pub fn describe_bot_policy_allowlist_shows_logins_test() {
+  let assert Ok(cfg) =
+    config.parse(
+      "[bots]\npolicy = \"allowlist\"\nallow = [\"dependabot[bot]\", \"renovate[bot]\"]",
+    )
+  let #(lines, _stdout) = take.with_stdout(fn() { config.describe(cfg) })
+
+  let assert Ok(bot_line) =
+    list.find(lines, fn(l) { string.starts_with(l, "bot-policy:") })
+  assert string.contains(bot_line, "dependabot[bot]")
+  assert string.contains(bot_line, "renovate[bot]")
+}
+
+pub fn describe_trailer_parsing_lenient_test() {
+  let assert Ok(cfg) = config.parse("trailer-parsing = \"lenient\"")
+  let #(lines, _stdout) = take.with_stdout(fn() { config.describe(cfg) })
+
+  let assert Ok(trailer_line) =
+    list.find(lines, fn(l) { string.starts_with(l, "trailer-parsing:") })
+  assert string.contains(trailer_line, "lenient")
+  assert !string.contains(trailer_line, "(default)")
+}
+
+pub fn describe_comment_enabled_test() {
+  let assert Ok(cfg) = config.parse("comment = true")
+  let #(lines, _stdout) = take.with_stdout(fn() { config.describe(cfg) })
+
+  let assert Ok(comment_line) =
+    list.find(lines, fn(l) { string.starts_with(l, "comment:") })
+  assert string.contains(comment_line, "true")
+  assert !string.contains(comment_line, "(default)")
+}
+
+pub fn describe_multiple_aliases_test() {
+  let assert Ok(cfg) =
+    config.parse(
+      "[alias-signoffs.aliases]\n\"bot@noreply.github.com\" = [\"support@github.com\"]\n\"other@noreply.github.com\" = [\"ops@company.com\", \"admin@company.com\"]",
+    )
+  let #(lines, _stdout) = take.with_stdout(fn() { config.describe(cfg) })
+
+  let assert Ok(alias_line) =
+    list.find(lines, fn(l) { string.starts_with(l, "alias-signoffs:") })
+  assert string.contains(alias_line, "bot@noreply.github.com")
+  assert string.contains(alias_line, "support@github.com")
+  assert string.contains(alias_line, "other@noreply.github.com")
+  assert string.contains(alias_line, "ops@company.com")
+  assert string.contains(alias_line, "admin@company.com")
+  assert !string.contains(alias_line, "(default)")
 }
