@@ -1,7 +1,10 @@
 //// Unified error type for the dco_check library.
 
 import dco_check/internal/github/client
+import gleam/dynamic/decode
 import gleam/int
+import gleam/json
+import gleam/list
 import gleam/string
 import oaspec/transport
 import simplifile
@@ -16,7 +19,7 @@ pub type DcoCheckError {
   ApiNotFound(String)
   ApiServerError(String)
   ApiUnavailable(String)
-  ResponseDecodeError(String)
+  ResponseDecodeError(json.DecodeError)
 }
 
 pub fn describe_error(err: DcoCheckError) -> String {
@@ -35,8 +38,30 @@ pub fn describe_error(err: DcoCheckError) -> String {
     ApiNotFound(msg) -> "not found: " <> msg
     ApiServerError(msg) -> "server error: " <> msg
     ApiUnavailable(msg) -> "service unavailable: " <> msg
-    ResponseDecodeError(msg) -> msg
+    ResponseDecodeError(decode_err) -> describe_decode_error(decode_err)
   }
+}
+
+fn describe_decode_error(err: json.DecodeError) -> String {
+  case err {
+    json.UnexpectedEndOfInput -> "Failed to decode response: unexpected end of input"
+    json.UnexpectedByte(byte) ->
+      "Failed to decode response: unexpected byte '" <> byte <> "'"
+    json.UnexpectedSequence(seq) ->
+      "Failed to decode response: unexpected sequence '" <> seq <> "'"
+    json.UnableToDecode(errors) ->
+      "Failed to decode commit comparison JSON:\n"
+      <> list.map(errors, describe_dynamic_error)
+      |> string.join("\n")
+  }
+}
+
+fn describe_dynamic_error(err: decode.DecodeError) -> String {
+  let path = case err.path {
+    [] -> ""
+    segments -> " at " <> string.join(segments, ".")
+  }
+  "  expected " <> err.expected <> ", got " <> err.found <> path
 }
 
 fn describe_client_error(err: client.ClientError) -> String {
