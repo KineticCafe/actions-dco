@@ -90,6 +90,11 @@ fn run_pipeline() -> Promise(
     }),
   )
 
+  // Log effective configuration
+  pontil.group("Effective configuration", fn() {
+    list.each(config.describe(ctx.cfg), pontil.info)
+  })
+
   use response <- promise.try_await(
     pontil.group_async("Fetching commit comparison", fn() {
       pipeline.fetch_comparison(
@@ -410,23 +415,25 @@ fn load_default_branch_config(
 
 fn resolve_default_branch_config(
   ctx: ActionContext,
-  config: Option(config.DefaultBranchConfig),
+  found: Option(#(String, config.DefaultBranchConfig)),
 ) -> Promise(Result(ActionContext, DcoCheckActionError)) {
-  case config {
+  case found {
     None -> promise.resolve(Ok(ctx))
-    Some(config.DirectConfig(cfg)) -> {
-      warn_on_config_override(ctx.inline_config, None)
+    Some(#(path, config.DirectConfig(cfg))) -> {
+      pontil.info("Loaded config from " <> path)
+      report_config_override(ctx)
       promise.resolve(Ok(ActionContext(..ctx, cfg:)))
     }
-    Some(config.RefConfig(url:)) -> {
-      pontil.debug("Config file contains ref, fetching: " <> url)
+    Some(#(path, config.RefConfig(url:))) -> {
+      pontil.info("Loaded config ref from " <> path <> ", fetching: " <> url)
 
       pipeline.fetch_ref_config(api_url: ctx.api_url, token: ctx.token, url:)
       |> promise.map(fn(resp) {
         resp
         |> result.map_error(DcoCheckError)
         |> result.map(fn(cfg) {
-          warn_on_config_override(ctx.inline_config, Some(url))
+          pontil.info("Loaded remote config from " <> url)
+          report_config_override(ctx)
           ActionContext(..ctx, cfg:)
         })
       })
@@ -434,21 +441,12 @@ fn resolve_default_branch_config(
   }
 }
 
-fn warn_on_config_override(inline_config: Bool, url: Option(String)) -> Nil {
-  use <- bool.guard(!inline_config, return: Nil)
+fn report_config_override(ctx: ActionContext) -> Nil {
+  use <- bool.guard(!ctx.inline_config, return: Nil)
 
-  case url {
-    None ->
-      pontil.warning(
-        "Using configuration from default branch config file. The 'config' workflow input is overridden.",
-      )
-    Some(url) ->
-      pontil.warning(
-        "Using configuration from remote ref ("
-        <> url
-        <> "). The 'config' workflow input is overridden.",
-      )
-  }
+  pontil.warning(
+    "The 'config' workflow input is overridden by the default branch config file.",
+  )
 }
 
 fn guard_pr_context(

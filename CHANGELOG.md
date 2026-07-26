@@ -9,10 +9,13 @@
   meaningful error.
 
 - Added support for reading `.github/dco-check.toml` or `.dco-check.toml` from
-  the repo root on the default branch. If present, this takes precedence over any
-  inline configuration (`config:`) key. This prevents a PR from "accidentally"
-  changing the DCO check policy. See the configuration documentation for
-  details.
+  the repo root on the default branch. If present, this takes precedence over
+  any inline configuration (`config:`) key. This prevents a PR from
+  "accidentally" changing the DCO check policy. See the configuration
+  documentation for details.
+
+- Added a configuration report to the output logs so that transient
+  configurations are still reported for review.
 
 ## 3.1.1 / 2026-07-25
 

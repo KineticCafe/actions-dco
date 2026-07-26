@@ -72,6 +72,102 @@ pub fn default() -> Config {
   )
 }
 
+/// Format the effective configuration as a list of info-level lines,
+/// flagging values that are at their defaults.
+pub fn describe(cfg: Config) -> List(String) {
+  let dft = default()
+
+  [
+    describe_exempt_authors(cfg.exempt_authors, dft.exempt_authors),
+    describe_bot_policy(cfg.bots, dft.bots),
+    describe_trailer_parsing(cfg.trailer_parsing, dft.trailer_parsing),
+    describe_bool(name: "comment", current: cfg.comment, default: dft.comment),
+    // describe_bool(name: "ai-detection", current: cfg.ai_detection, default: dft.ai_detection),
+    describe_aliases(cfg.aliases),
+  ]
+}
+
+fn describe_exempt_authors(
+  current: Exemptions,
+  default_val: Exemptions,
+) -> String {
+  use <- bool.guard(
+    current == default_val,
+    return: "exempt-authors: none (default)",
+  )
+
+  "exempt-authors: "
+  <> { list.append(current.exact, current.ends_with) |> string.join(", ") }
+}
+
+fn describe_bot_policy(current: BotPolicy, default_val: BotPolicy) -> String {
+  let value = case current {
+    AllBots -> "all"
+    NoBots -> "none"
+    WellKnownBots(categories: []) -> "well-known (all categories)"
+    WellKnownBots(categories:) ->
+      "well-known ("
+      <> list.map(categories, describe_category) |> string.join(", ")
+      <> ")"
+    Allowlist(allow:) -> "allowlist (" <> string.join(allow, ", ") <> ")"
+  }
+  case current == default_val {
+    True -> "bot-policy: " <> value <> " (default)"
+    False -> "bot-policy: " <> value
+  }
+}
+
+fn describe_category(cat: BotCategory) -> String {
+  case cat {
+    DependencyUpdaters -> "dependency-updaters"
+    CiCd -> "ci-cd"
+    Release -> "release"
+  }
+}
+
+fn describe_trailer_parsing(
+  current: TrailerParsing,
+  default_val: TrailerParsing,
+) -> String {
+  let value = case current {
+    Strict -> "strict"
+    Lenient -> "lenient"
+  }
+  case current == default_val {
+    True -> "trailer-parsing: " <> value <> " (default)"
+    False -> "trailer-parsing: " <> value
+  }
+}
+
+fn describe_bool(
+  name name: String,
+  current current: Bool,
+  default default_val: Bool,
+) -> String {
+  let value = case current {
+    True -> "true"
+    False -> "false"
+  }
+  case current == default_val {
+    True -> name <> ": " <> value <> " (default)"
+    False -> name <> ": " <> value
+  }
+}
+
+fn describe_aliases(aliases: dict.Dict(String, List(String))) -> String {
+  case dict.size(aliases) {
+    0 -> "alias-signoffs: none (default)"
+    _ -> {
+      let entries =
+        dict.fold(aliases, [], fn(acc, key, values) {
+          [key <> " -> " <> string.join(values, ", "), ..acc]
+        })
+        |> string.join("; ")
+      "alias-signoffs: " <> entries
+    }
+  }
+}
+
 /// Load config from a TOML file.
 pub fn load(path: String) -> Result(Config, DcoCheckError) {
   case simplifile.read(path) {
