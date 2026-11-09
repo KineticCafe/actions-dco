@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Compile the project and bundle the action into dist/"
+set -euo pipefail
+
+gleam build
+gleam run -m pontil_build

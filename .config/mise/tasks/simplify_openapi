@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+#MISE description="Extract the endpoints we use from the full OpenAPI description"
+set -euo pipefail
+
+# The GitHub API paths the generated client needs. Update this list, then run
+# `mise run generate`, to add endpoints.
+openapi_paths=(
+  '/repos/{owner}/{repo}/compare/{basehead}'
+  '/repos/{owner}/{repo}/contents/{path}'
+  '/repos/{owner}/{repo}/issues/comments/{comment_id}'
+  '/repos/{owner}/{repo}/issues/{issue_number}/comments'
+)
+
+scripts/extract-openapi-subset api.github.com.yaml \
+  --output api.github.com.min.yaml \
+  --strip=all \
+  "${openapi_paths[@]}"

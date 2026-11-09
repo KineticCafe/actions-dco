@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+#MISE description="Regenerate the GitHub API client from the trimmed OpenAPI description"
+#MISE depends=["simplify_openapi"]
+set -euo pipefail
+
+gleam run -m oaspec generate
+gleam format
+fastmod --accept-all '[ \t]$' '' src/dco_check/internal/github/

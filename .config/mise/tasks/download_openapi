@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#MISE description="Download the full GitHub REST API OpenAPI description"
+set -euo pipefail
+
+openapi_url="https://raw.githubusercontent.com/github/rest-api-description/refs/heads/main/descriptions-next/api.github.com/api.github.com.yaml"
+
+curl -sSL "${openapi_url}" -O
