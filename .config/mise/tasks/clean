@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Remove build output and generated scratch directories"
+set -euo pipefail
+
+rm -rf build gen
