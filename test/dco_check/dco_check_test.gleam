@@ -85,6 +85,30 @@ pub fn merge_commit_skipped_test() {
   assert record.disposition == types.MergeCommit
 }
 
+pub fn identical_author_committer_dedupes_identities_test() {
+  let #(url, total, commits) = load_fixture_commits()
+  let #(_summary, records) = run_dco(commits, url, config.default(), total)
+
+  // First commit: author and committer are the same person
+  let assert Ok(record) = list.first(records)
+  assert record.identities
+    == [
+      types.Identity(
+        name: "First Committer",
+        email: "first.committer@example.org",
+      ),
+    ]
+}
+
+pub fn distinct_author_committer_keeps_both_identities_test() {
+  let #(url, total, commits) = load_fixture_commits()
+  let #(_summary, records) = run_dco(commits, url, config.default(), total)
+
+  // Second commit: dependabot author, human committer
+  let assert [_, record, ..] = records
+  assert list.length(record.identities) == 2
+}
+
 // --- bot policy: NoBots ---
 
 pub fn no_bots_policy_requires_signoff_test() {
