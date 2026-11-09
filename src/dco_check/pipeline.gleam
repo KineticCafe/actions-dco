@@ -99,6 +99,8 @@ pub fn process_response(
       Error(
         error.ApiUnavailable(option.unwrap(err.message, "service unavailable")),
       )
+    response_types.ReposCompareCommitsResponseUnprocessableEntity(err) ->
+      Error(error.ApiUnavailable(err.message))
   }
 }
 
