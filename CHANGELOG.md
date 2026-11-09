@@ -1,9 +1,17 @@
 # KineticCafe/actions-dco Changelog
 
+## 3.2.1 / 2026-11-09
+
+- Fixed an issue with summaries and comments where the outputs were not
+  properly HTML escaped. This is a regression from the TypeScript
+  implementation missed until now. During the process, I noticed that the
+  output was duplicated ("Expected A or A, got B") because the committer and
+  author have the same value. [#222][pull-222]
+
 ## 3.2.0 / 2026-07-25
 
-- Added a test case to detect regression of [#216][issue-216] or similar parsing
-  errors.
+- Added a test case to detect regression of [#216][issue-216] or similar
+  parsing errors.
 
 - Modified the error handling of JSON response decoding to include a more
   meaningful error.
@@ -23,9 +31,9 @@
 
 ## 3.1.0 / 2026-05-15
 
-- Reshaped the sign-off summary written to the action and optionally as a commit
-  comment. The message as added with 3.0.0 was accurate but meaningless. It has
-  now be modified to produce meaningful summaries.
+- Reshaped the sign-off summary written to the action and optionally as a
+  commit comment. The message as added with 3.0.0 was accurate but
+  meaningless. It has now be modified to produce meaningful summaries.
 
   Each commit that fails (up to X commits) will be included in a DCO failure
   table:
@@ -51,19 +59,19 @@
   successful or failed as a whole.
 
 - Fixed a pathological bug where parsing trailers in Lenient mode would result
-  in quadratic time parsing. This wouldn't have been noticeable initially except
-  for a separate bug where some experimental minimal AI assistant checking was
-  always executed and ran trailer parsing in Lenient mode, even though the
-  default trailer parsing rule is Strict.
+  in quadratic time parsing. This wouldn't have been noticeable initially
+  except for a separate bug where some experimental minimal AI assistant
+  checking was always executed and ran trailer parsing in Lenient mode, even
+  though the default trailer parsing rule is Strict.
 
   > We apologize for the fault in the subtitles. Those responsible have been
   > sacked.
 
-  This has been resolved by improving the parsing to operate on split graphemes,
-  and all trailer parsing has been modified to short circuit on the block (if a
-  trailer is not present on the first line of the block, it's not a trailer
-  block) and the line (trailers must have `:`; if not present, it's not a
-  trailer line).
+  This has been resolved by improving the parsing to operate on split
+  graphemes, and all trailer parsing has been modified to short circuit on the
+  block (if a trailer is not present on the first line of the block, it's not
+  a trailer block) and the line (trailers must have `:`; if not present, it's
+  not a trailer line).
 
   > We apologize again for the fault in the subtitles. Those responsible for
   > sacking the people who have just been sacked have been sacked.
@@ -79,10 +87,10 @@
 ## 3.0.0 / 2026-05-09
 
 Version 3 is a full rewrite in Gleam, targeting JavaScript. It _should_ be
-mostly compatible with previous versions. Malformed commits or sign-off trailers
-are no longer treated as partial matches, which will result in those commits
-being rejected where earlier versions may have produced a subtly incorrect
-validation.
+mostly compatible with previous versions. Malformed commits or sign-off
+trailers are no longer treated as partial matches, which will result in those
+commits being rejected where earlier versions may have produced a subtly
+incorrect validation.
 
 For security purposes, `actions-dco` is released with immutable releases and
 tags with no floating version tags. You muse use `@v3.0.0` instead of `@v3`.
@@ -90,22 +98,22 @@ Pinning to the specific tag reference is strongly recommended.
 
 ### Deprecations and Stricter Validation
 
-- The `exempt-authors` input is deprecated, and its use will emit a deprecation
-  warning. Configuration is now provided via an embedded `TOML` configuration
-  (`config`).
+- The `exempt-authors` input is deprecated, and its use will emit a
+  deprecation warning. Configuration is now provided via an embedded `TOML`
+  configuration (`config`).
 
 - Commit identity parsing has been made more strict. The previous version of
   `actions-dco` would compose a user and email combination from _both_ the
   author and the committer if either was missing its `name` or `email` fields.
-  Given a case where the commit author only had `jane@example.org` in her email,
-  and the committer only had `John Committer`, the action would synthesize an
-  identity `John Committer <jane@example.org>`.
+  Given a case where the commit author only had `jane@example.org` in her
+  email, and the committer only had `John Committer`, the action would
+  synthesize an identity `John Committer <jane@example.org>`.
 
   This no longer happens.
 
 - Git trailers are strictly parsed. Previous versions would read the
-  `signed-off-by` trailer from anywhere in the commit message. Now, they must be
-  properly positioned as Git trailers with some flexibility by using
+  `signed-off-by` trailer from anywhere in the commit message. Now, they must
+  be properly positioned as Git trailers with some flexibility by using
   `trailer-parsing = "lenient"`.
 
 - Sign-off trailers MUST have both name and email fields.
@@ -114,14 +122,15 @@ Pinning to the specific tag reference is strongly recommended.
 
 - TOML configuration. For the initial version, `actions-dco` supports inline
   configuration with the `config` input. Future versions will support config
-  file references. Eventually, inline `config` will be deprecated and removed as
-  external configuration is safer.
+  file references. Eventually, inline `config` will be deprecated and removed
+  as external configuration is safer.
 
 - Bot policies: Bot committers have been ignored by default since the first
-  version of `actions-dco`, but this need not be the case any further. Bots may
-  be configured to require explicit `signed-off-by` trailers (`none`), only
-  `well-known` bots (which can be restricted further by `bot.categories`), or
-  only specific bots are exempted (`allowlist` with `bot.allow`).
+  version of `actions-dco`, but this need not be the case any further. Bots
+  may be configured to require explicit `signed-off-by` trailers (`none`),
+  only `well-known` bots (which can be restricted further by
+  `bot.categories`), or only specific bots are exempted (`allowlist` with
+  `bot.allow`).
 
 - Sign-off aliasing. When using the web interface for committing, you may be
   prompted to use your private Git commit alias, but you might still set
@@ -202,16 +211,18 @@ Pinning to the specific tag reference is strongly recommended.
 
 ## 1.1 / 2023-07-21
 
-- Improved error messages using action summaries (`summary` in `@actions/core`).
+- Improved error messages using action summaries (`summary` in
+  `@actions/core`).
 
 - Added `exempt-authors` for assumed-permitted (e.g, company-owned open source
   repos automatically permit company emails).
 
 ## 1.0 / 2023-06-12
 
-- Initial release. This is a Typescript port of tisonkun/actions-dco set to use
-  Node v16.
+- Initial release. This is a Typescript port of tisonkun/actions-dco set to
+  use Node v16.
 
 [issue-169]: https://github.com/KineticCafe/actions-dco/issues/169
 [issue-198]: https://github.com/KineticCafe/actions-dco/issues/198
 [issue-216]: https://github.com/KineticCafe/actions-dco/issues/216
+[issue-222]: https://github.com/KineticCafe/actions-dco/pull/222

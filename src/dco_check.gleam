@@ -425,6 +425,7 @@ fn find_email_exemption(
 }
 
 /// Build identities from author/committer, keeping only complete pairs.
+/// Exact duplicates (author == committer) are dropped.
 fn resolve_identities(
   candidates: List(Option(github_types.GitUser)),
 ) -> List(Identity) {
@@ -435,6 +436,7 @@ fn resolve_identities(
       _ -> Error(Nil)
     }
   })
+  |> list.unique
 }
 
 /// Build summary counts from the processed records.

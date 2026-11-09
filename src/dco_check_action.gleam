@@ -239,11 +239,11 @@ fn format_success_section(records: List(DcoRecord)) -> String {
       let rows =
         list.map(groups, fn(g) {
           "| "
-          <> g.identity
+          <> houdini.escape(g.identity)
           <> " | "
           <> int.to_string(g.count)
           <> " ("
-          <> g.note
+          <> houdini.escape(g.note)
           <> ") |"
         })
         |> string.join("\n")
@@ -529,7 +529,7 @@ fn summary_failures(
     |> list.fold(table, fn(t, r) {
       summary.row(t, [
         dco_check.format_sha(r.sha),
-        r.subject,
+        houdini.escape(r.subject),
         format_disposition(r),
       ])
     })
@@ -565,8 +565,8 @@ fn summary_success_groups(
   let table =
     list.fold(groups, table, fn(t, g) {
       summary.row(t, [
-        g.identity,
-        int.to_string(g.count) <> " (" <> g.note <> ")",
+        houdini.escape(g.identity),
+        int.to_string(g.count) <> " (" <> houdini.escape(g.note) <> ")",
       ])
     })
 
@@ -584,7 +584,9 @@ fn build_failure_message(summary: DcoSummary) -> String {
 }
 
 fn format_disposition(record: DcoRecord) -> String {
-  case record.disposition {
+  // Identities render as `Name <email>`; escape so the angle brackets survive
+  // in both the HTML job summary and the Markdown PR comment.
+  houdini.escape(case record.disposition {
     NoSignoffs -> "No Signed-off-by trailer found."
     NoMatch(expected:, found:) ->
       "Expected "
@@ -595,7 +597,7 @@ fn format_disposition(record: DcoRecord) -> String {
       |> string.join(", ")
     InvalidCommit -> "No valid commit identity."
     _ -> ""
-  }
+  })
 }
 
 /// Write a job summary for internal errors (decode failures, etc.) with

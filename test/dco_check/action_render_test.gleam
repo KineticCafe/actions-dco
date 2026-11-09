@@ -206,7 +206,75 @@ pub fn write_summary_failure_test() {
   assert string.contains(content, "No Signed-off-by trailer")
 }
 
+pub fn write_summary_escapes_html_test() {
+  use file <- with_summary_file("escapes_html")
+
+  let summary =
+    types.DcoSummary(
+      total_commits: 2,
+      evaluated: 2,
+      passed: 1,
+      failed: 1,
+      invalid: 0,
+      exempted: 0,
+      skipped_merge: 0,
+      skipped_bot: 0,
+      truncated: False,
+    )
+  let records = [
+    passed_record("aaa111", "feat: good", "Alice", "alice@example.com"),
+    no_match_record("bbb222", "fix: handle <T> generics"),
+  ]
+
+  assert Ok(Nil) == dco_check_action.write_summary(summary, records)
+
+  let assert Ok(content) = simplifile.read(file)
+  // Problem cell
+  assert string.contains(content, "Alice &lt;al…@example.com&gt;")
+  assert string.contains(content, "Alice &lt;al…@users.noreply.github.com&gt;")
+  // Subject cell
+  assert string.contains(content, "fix: handle &lt;T&gt; generics")
+  assert !string.contains(content, "<T>")
+  // Success identity cell
+  assert !string.contains(content, "<al…@example.com>")
+}
+
+pub fn comment_body_escapes_html_test() {
+  let summary =
+    types.DcoSummary(
+      total_commits: 1,
+      evaluated: 1,
+      passed: 0,
+      failed: 1,
+      invalid: 0,
+      exempted: 0,
+      skipped_merge: 0,
+      skipped_bot: 0,
+      truncated: False,
+    )
+  let records = [no_match_record("bbb222", "feat: thing")]
+
+  let body = dco_check_action.format_comment_body(summary, records)
+  assert string.contains(body, "Alice &lt;al…@example.com&gt;")
+  assert !string.contains(body, "<al…@example.com>")
+}
+
 // --- helpers ---
+
+fn no_match_record(sha: String, subject: String) -> types.DcoRecord {
+  let id = types.Identity(name: "Alice", email: "alice@example.com")
+  types.DcoRecord(
+    sha:,
+    url: "https://github.com/test/repo/commits/" <> sha,
+    subject:,
+    author: None,
+    committer: None,
+    identities: [id],
+    disposition: types.NoMatch(expected: [id], found: [
+      types.Identity(name: "Alice", email: "alice@users.noreply.github.com"),
+    ]),
+  )
+}
 
 fn with_summary_file(name: String, body: fn(String) -> a) -> a {
   let dir = "test/_temp/" <> name
