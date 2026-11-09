@@ -5,4 +5,6 @@ set -euo pipefail
 
 gleam run -m oaspec generate
 gleam format
+# bytes_body is generated but unused; comment it out to avoid the warning
+perl -pi -e 's{^}{// } if /^fn bytes_body\(/ .. /^}$/' src/dco_check/internal/github/client.gleam
 fastmod --accept-all '[ \t]$' '' src/dco_check/internal/github/
