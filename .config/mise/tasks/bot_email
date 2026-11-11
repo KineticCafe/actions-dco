@@ -1,0 +1,56 @@
+#!/usr/bin/env node
+//MISE description="Print the GitHub noreply commit email(s) for one or more account logins"
+
+// Usage: mise run bot_email <login>...
+//
+// The numeric account ID in a GitHub noreply address cannot be derived from the login, so
+// each login is looked up with the GitHub API (GET /users/{login}). Dev-time only: paste
+// the results into the AI agent registry; the check itself never looks anything up.
+//
+// Set GITHUB_TOKEN or GH_TOKEN to avoid the unauthenticated rate limit.
+
+const api = process.env.GITHUB_API_URL ?? 'https://api.github.com'
+const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN
+
+// Accounts created before this date also keep the legacy LOGIN@users.noreply.github.com
+// address alongside ID+LOGIN@users.noreply.github.com.
+const legacyCutoff = Date.parse('2017-07-18T00:00:00Z')
+
+async function lookup(login) {
+  const headers = {
+    accept: 'application/vnd.github+json',
+    'user-agent': 'actions-dco-bot-email',
+  }
+  if (token) headers.authorization = `Bearer ${token}`
+
+  // encodeURIComponent percent-encodes the [ and ] in bot logins.
+  const res = await fetch(`${api}/users/${encodeURIComponent(login)}`, { headers })
+
+  if (!res.ok) {
+    console.error(`${login}: GitHub API returned HTTP ${res.status}`)
+    return false
+  }
+
+  const user = await res.json()
+
+  console.log(`${user.login} (${user.type}, id ${user.id}, created ${user.created_at})`)
+  console.log(`  ${user.id}+${user.login}@users.noreply.github.com`.toLowerCase())
+  if (Date.parse(user.created_at) < legacyCutoff) {
+    console.log(`  ${user.login}@users.noreply.github.com (legacy; verify)`.toLowerCase())
+  }
+  return true
+}
+
+async function main() {
+  const logins = process.argv.slice(2)
+  if (logins.length === 0) {
+    console.error('usage: mise run bot_email <login>...')
+    process.exit(64)
+  }
+
+  let ok = true
+  for (const login of logins) ok = (await lookup(login)) && ok
+  process.exit(ok ? 0 : 1)
+}
+
+main()

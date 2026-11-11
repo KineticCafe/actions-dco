@@ -16,6 +16,7 @@ pub type DcoCheckError {
   ConfigFileError(path: String, reason: simplifile.FileError)
   ConfigRefError(String)
   ConfigInvalidRef(String)
+  ConfigInvalidValue(key: List(String), message: String)
   // Pipeline errors
   TransportError(client.ClientError)
   ApiNotFound(String)
@@ -38,6 +39,8 @@ pub fn describe_error(err: DcoCheckError) -> String {
       <> ")"
     ConfigRefError(msg) -> "Config ref error: " <> msg
     ConfigInvalidRef(msg) -> "Invalid config: " <> msg
+    ConfigInvalidValue(key:, message:) ->
+      "Invalid config: " <> string.join(key, ".") <> ": " <> message
     TransportError(client_err) -> describe_client_error(client_err)
     ApiNotFound(msg) -> "not found: " <> msg
     ApiServerError(msg) -> "server error: " <> msg

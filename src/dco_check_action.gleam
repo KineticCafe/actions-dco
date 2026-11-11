@@ -4,14 +4,17 @@
 //// render summary -> write job summary -> optionally comment on PR -> set pass/fail.
 
 import dco_check
-import dco_check/config.{Exemptions}
+import dco_check/config
 import dco_check/error
+import dco_check/format
 import dco_check/pipeline
 import dco_check/types.{
-  type DcoRecord, type DcoSummary, InvalidCommit, NoMatch, NoSignoffs,
+  type DcoRecord, type DcoSummary, AiCoAuthorRejected, AiSignoffRejected,
+  AiTraceRejected, InvalidCommit, NoMatch, NoSignoffs,
 }
 import gleam/bool
 import gleam/dict
+import gleam/function
 import gleam/int
 import gleam/javascript/promise.{type Promise}
 import gleam/json
@@ -61,6 +64,40 @@ type DcoCheckActionError {
   DcoCheckError(error.DcoCheckError)
   ContextError(context.PontilContextError)
   SummaryError(pontil_core.PontilCoreError)
+  /// A `config` input was given but a default branch config file exists.
+  ConfigConflict(path: String)
+  /// Inputs removed in v4 are still set.
+  RemovedInputsSet(List(RemovedInput))
+}
+
+/// An action input removed in v4, with migration advice.
+pub type RemovedInput {
+  RemovedInput(name: String, advice: String)
+}
+
+/// Inputs removed in v4. In 4.0, setting one fails the run so the policy change is not
+/// silent. In 4.1 this check is dropped and GitHub's own "Unexpected input" warning is all
+/// that remains.
+const removed_inputs = [
+  RemovedInput(
+    name: "exempt-authors",
+    advice: "Move the exemptions to `exempt-authors = [...]` in the TOML configuration (the `config` input or a default branch config file).",
+  ),
+]
+
+/// Fail if any input removed in v4 is set. GitHub passes undeclared inputs through as
+/// `INPUT_*` environment variables, so they are still visible here.
+pub fn check_removed_inputs() -> Result(Nil, List(RemovedInput)) {
+  case
+    list.filter(removed_inputs, fn(input) { pontil.get_input(input.name) != "" })
+  {
+    [] -> Ok(Nil)
+    set -> Error(set)
+  }
+}
+
+pub fn describe_removed_input(input: RemovedInput) -> String {
+  "The '" <> input.name <> "' input was removed in v4. " <> input.advice
 }
 
 /// Setup result includes PR number for comment support.
@@ -73,7 +110,9 @@ type ActionContext {
     pr_number: Int,
     api_url: String,
     token: String,
-    inline_config: Bool,
+    /// Raw (trimmed) `config` input. Resolved after the default branch lookup.
+    config_input: String,
+    /// The effective config. Only valid after `load_config`.
     cfg: config.Config,
   )
 }
@@ -83,15 +122,16 @@ fn run_pipeline() -> Promise(
 ) {
   use ctx <- pontil.try_sync(setup())
 
-  // Fetch default branch config (overrides any config input if found)
+  // A default branch config is authoritative; an inline config alongside it is rejected.
   use ctx <- promise.try_await(
     pontil.group_async("Checking default branch config", fn() {
-      load_default_branch_config(ctx)
+      load_config(ctx)
     }),
   )
 
   // Log effective configuration
   pontil.group("Effective configuration", fn() {
+    list.each(ctx.cfg.warnings, pontil.warning)
     list.each(config.describe(ctx.cfg), pontil.info)
   })
 
@@ -194,13 +234,13 @@ pub fn format_comment_body(
       let rows =
         list.map(capped, fn(r) {
           "| [`"
-          <> dco_check.format_sha(r.sha)
+          <> format.sha(r.sha)
           <> "`]("
           <> r.url
           <> ") | "
-          <> houdini.escape(r.subject)
+          <> houdini.escape(format.escape_markdown(r.subject))
           <> " | "
-          <> format_disposition(r)
+          <> format_disposition(r, escape: format.escape_markdown)
           <> " |"
         })
         |> string.join("\n")
@@ -239,20 +279,38 @@ fn format_success_section(records: List(DcoRecord)) -> String {
       let rows =
         list.map(groups, fn(g) {
           "| "
-          <> houdini.escape(g.identity)
+          <> houdini.escape(format.escape_markdown(g.identity))
           <> " | "
           <> int.to_string(g.count)
           <> " ("
-          <> houdini.escape(g.note)
+          <> comment_note(g.note)
           <> ") |"
         })
         |> string.join("\n")
 
+      // GitHub renders Markdown footnotes in comments; the definition is only emitted
+      // when a row references it.
+      let footnote = case list.any(groups, is_flagged) {
+        True -> "\n\n[^ai-signoff]: " <> format.ai_signoff_footnote
+        False -> ""
+      }
+
       "\n\n### Commits\n\n| Identity | Commits |\n|----------|---------|"
       <> "\n"
       <> rows
+      <> footnote
     }
   }
+}
+
+/// Escape a note for the Markdown comment, turning the AI sign-off marker into a footnote
+/// reference.
+fn comment_note(note: String) -> String {
+  houdini.escape(format.escape_markdown(note))
+  |> string.replace(
+    format.ai_signoff_marker,
+    format.ai_signoff_marker <> "[^ai-signoff]",
+  )
 }
 
 /// Build grouped success entries. Uses a dict keyed by (identity_label, note) to
@@ -301,27 +359,47 @@ fn add_success_group(
 }
 
 fn success_group_for(record: DcoRecord) -> Result(SuccessGroup, Nil) {
+  use group <- result.map(disposition_success_group(record))
+
+  // Flag commits whose AI sign-off was ignored; rows with different flags group apart.
+  case format.has_ignored_ai_signoff(record) {
+    True ->
+      SuccessGroup(..group, note: group.note <> " " <> format.ai_signoff_marker)
+    False -> group
+  }
+}
+
+/// Whether a success row carries the ignored-AI-sign-off marker.
+fn is_flagged(group: SuccessGroup) -> Bool {
+  string.contains(group.note, format.ai_signoff_marker)
+}
+
+fn disposition_success_group(record: DcoRecord) -> Result(SuccessGroup, Nil) {
   case record.disposition {
-    types.Passed -> {
-      let identity = case record.identities {
-        [id, ..] -> id.name <> " <" <> dco_check.mask_email(id.email) <> ">"
-        [] -> "unknown"
-      }
+    types.Passed(identity: id) -> {
+      let identity = id.name <> " <" <> format.mask_email(id.email) <> ">"
       Ok(SuccessGroup(identity:, count: 1, note: "signed off"))
     }
-    types.Exempted(identity:, match:) -> {
+    types.Exempted(identity:, match:, alias:) -> {
       let label =
-        identity.name <> " <" <> dco_check.mask_email(identity.email) <> ">"
-      let note = case match {
-        types.ExactEmail -> "exempt"
-        types.DomainPattern(pattern) -> "exempt domain " <> pattern
-      }
-      Ok(SuccessGroup(identity: label, count: 1, note:))
+        identity.name <> " <" <> format.mask_email(identity.email) <> ">"
+      Ok(SuccessGroup(
+        identity: label,
+        count: 1,
+        note: format.exemption_note(
+          match:,
+          alias: option.map(alias, format.mask_email),
+        ),
+      ))
     }
     types.BotCommit(login:, ..) ->
       Ok(SuccessGroup(identity: login, count: 1, note: "bot, skipped"))
     types.MergeCommit ->
-      Ok(SuccessGroup(identity: "merge commits", count: 1, note: "skipped"))
+      Ok(SuccessGroup(
+        identity: "merge commits",
+        count: 1,
+        note: "no sign-off, skipped",
+      ))
     types.Skipped(reason) ->
       Ok(SuccessGroup(identity: "skipped", count: 1, note: reason))
     _ -> Error(Nil)
@@ -329,29 +407,14 @@ fn success_group_for(record: DcoRecord) -> Result(SuccessGroup, Nil) {
 }
 
 fn setup() -> Result(ActionContext, DcoCheckActionError) {
-  let token = pontil.get_input("repo-token")
-  let config_toml = pontil.get_input("config")
-  let exempt_authors_input = pontil.get_input("exempt-authors")
+  use _ <- result.try(
+    check_removed_inputs() |> result.map_error(RemovedInputsSet),
+  )
 
-  let cfg = case config_toml {
-    "" -> load_legacy_inputs(exempt_authors_input)
-    toml -> {
-      case exempt_authors_input {
-        "" -> Nil
-        _ ->
-          pontil.warning(
-            "Both 'config' and 'exempt-authors' inputs provided; 'exempt-authors' is ignored when 'config' is present.",
-          )
-      }
-      case config.parse(toml) {
-        Ok(c) -> c
-        Error(err) -> {
-          pontil.warning("Config parse error: " <> error.describe_error(err))
-          config.default()
-        }
-      }
-    }
-  }
+  let token = pontil.get_input("repo-token")
+  // Inputs are trimmed; an empty value means the input was not set. Config is resolved
+  // in `load_config`, after the default branch lookup.
+  let config_input = pontil.get_input("config")
 
   let ctx = context.new()
   use <- guard_pr_context(ctx)
@@ -393,14 +456,19 @@ fn setup() -> Result(ActionContext, DcoCheckActionError) {
     pr_number: pr_event.number,
     api_url: ctx.api_url,
     token:,
-    inline_config: config_toml != "",
-    cfg:,
+    config_input:,
+    cfg: config.default(),
   ))
 }
 
-/// Load config from the default branch, resolving ref URLs if needed. If found, overrides
-/// the ctx.cfg and emits a warning if an inline config was also provided.
-fn load_default_branch_config(
+/// Resolve the effective config.
+///
+/// - A default branch config file (`.github/dco-check.toml` or `.dco-check.toml`, possibly
+///   a `ref` to a remote config) is authoritative. If the `config` input is also set, the
+///   run fails: policy must come from one place, and the workflow file is not it.
+/// - Otherwise a non-empty `config` input is parsed strictly; an invalid one fails the run.
+/// - Otherwise the defaults are used.
+fn load_config(
   ctx: ActionContext,
 ) -> Promise(Result(ActionContext, DcoCheckActionError)) {
   pipeline.fetch_default_branch_config(
@@ -410,18 +478,22 @@ fn load_default_branch_config(
     repo: ctx.repo,
   )
   |> promise.map(fn(r) { result.map_error(r, DcoCheckError) })
-  |> promise.try_await(resolve_default_branch_config(ctx, _))
+  |> promise.try_await(resolve_config(ctx, _))
 }
 
-fn resolve_default_branch_config(
+fn resolve_config(
   ctx: ActionContext,
   found: Option(#(String, config.DefaultBranchConfig)),
 ) -> Promise(Result(ActionContext, DcoCheckActionError)) {
   case found {
-    None -> promise.resolve(Ok(ctx))
+    None ->
+      inline_or_default_config(ctx)
+      |> result.map(fn(cfg) { ActionContext(..ctx, cfg:) })
+      |> promise.resolve
+    Some(#(path, _)) if ctx.config_input != "" ->
+      promise.resolve(Error(ConfigConflict(path:)))
     Some(#(path, config.DirectConfig(cfg))) -> {
       pontil.info("Loaded config from " <> path)
-      report_config_override(ctx)
       promise.resolve(Ok(ActionContext(..ctx, cfg:)))
     }
     Some(#(path, config.RefConfig(url:))) -> {
@@ -433,7 +505,6 @@ fn resolve_default_branch_config(
         |> result.map_error(DcoCheckError)
         |> result.map(fn(cfg) {
           pontil.info("Loaded remote config from " <> url)
-          report_config_override(ctx)
           ActionContext(..ctx, cfg:)
         })
       })
@@ -441,12 +512,17 @@ fn resolve_default_branch_config(
   }
 }
 
-fn report_config_override(ctx: ActionContext) -> Nil {
-  use <- bool.guard(!ctx.inline_config, return: Nil)
-
-  pontil.warning(
-    "The 'config' workflow input is overridden by the default branch config file.",
-  )
+/// No default branch config: use the `config` input, else the defaults.
+fn inline_or_default_config(
+  ctx: ActionContext,
+) -> Result(config.Config, DcoCheckActionError) {
+  case ctx.config_input {
+    "" -> {
+      pontil.debug("No config provided, using defaults")
+      Ok(config.default())
+    }
+    toml -> config.parse(toml) |> result.map_error(DcoCheckError)
+  }
 }
 
 fn guard_pr_context(
@@ -506,7 +582,12 @@ fn summary_truncated(
 fn failure_records(records: List(DcoRecord)) -> List(DcoRecord) {
   list.filter(records, fn(r) {
     case r.disposition {
-      NoSignoffs | NoMatch(..) | InvalidCommit -> True
+      NoSignoffs
+      | NoMatch(..)
+      | InvalidCommit
+      | AiSignoffRejected(..)
+      | AiCoAuthorRejected(..)
+      | AiTraceRejected(..) -> True
       _ -> False
     }
   })
@@ -528,9 +609,9 @@ fn summary_failures(
     list.take(failures, 20)
     |> list.fold(table, fn(t, r) {
       summary.row(t, [
-        dco_check.format_sha(r.sha),
+        format.sha(r.sha),
         houdini.escape(r.subject),
-        format_disposition(r),
+        format_disposition(r, escape: function.identity),
       ])
     })
 
@@ -570,9 +651,18 @@ fn summary_success_groups(
       ])
     })
 
+  let elements =
+    elements
+    |> summary.h2("Commits")
+    |> summary.table(table)
+
+  // The job summary table is HTML, where Markdown footnote syntax is not processed, so the
+  // marker is the bare emoji and the footnote is a plain line.
+  use <- bool.guard(!list.any(groups, is_flagged), return: elements)
+
   elements
-  |> summary.h2("Commits")
-  |> summary.table(table)
+  |> summary.raw(format.ai_signoff_marker <> " " <> format.ai_signoff_footnote)
+  |> summary.eol
 }
 
 fn build_failure_message(summary: DcoSummary) -> String {
@@ -583,19 +673,38 @@ fn build_failure_message(summary: DcoSummary) -> String {
   }
 }
 
-fn format_disposition(record: DcoRecord) -> String {
+/// The "Problem" text for a failed commit. `escape` makes the dynamic parts (identities,
+/// sign-off values) safe for the surface: `format.escape_markdown` for the Markdown PR
+/// comment, `function.identity` for the HTML job summary. The whole message is then
+/// HTML-escaped once.
+fn format_disposition(
+  record: DcoRecord,
+  escape escape: fn(String) -> String,
+) -> String {
   // Identities render as `Name <email>`; escape so the angle brackets survive
   // in both the HTML job summary and the Markdown PR comment.
   houdini.escape(case record.disposition {
     NoSignoffs -> "No Signed-off-by trailer found."
     NoMatch(expected:, found:) ->
       "Expected "
-      <> list.map(expected, dco_check.format_signoff_masked)
+      <> list.map(expected, fn(id) { escape(format.signoff_masked(id)) })
       |> string.join(" or ")
       <> ", found "
-      <> list.map(found, dco_check.format_signoff_masked)
+      <> list.map(found, fn(id) { escape(format.signoff_masked(id)) })
       |> string.join(", ")
     InvalidCommit -> "No valid commit identity."
+    AiSignoffRejected(agents:) ->
+      format.describe_ai_signoff_rejected(
+        list.map(agents, fn(match) { escape(format.ai_match_masked(match)) }),
+      )
+    AiCoAuthorRejected(agents:) ->
+      format.describe_ai_co_author_rejected(
+        list.map(agents, fn(match) { escape(format.ai_match_masked(match)) }),
+      )
+    AiTraceRejected(agents:) ->
+      format.describe_ai_trace_rejected(
+        list.map(agents, fn(match) { escape(format.ai_match_masked(match)) }),
+      )
     _ -> ""
   })
 }
@@ -676,35 +785,11 @@ fn describe_error(err: DcoCheckActionError) -> String {
     DcoCheckError(e) -> error.describe_error(e)
     ContextError(e) -> context.describe_error(e)
     SummaryError(e) -> "Summary write error: " <> pontil_core.describe_error(e)
-  }
-}
-
-/// Fall back to legacy action inputs (exempt-authors).
-fn load_legacy_inputs(exempt_authors_input: String) -> config.Config {
-  case exempt_authors_input {
-    "" -> {
-      pontil.debug("No config or legacy inputs provided, using defaults")
-      config.default()
-    }
-    raw -> {
-      pontil.warning(
-        "Configuration via the 'exempt-authors' input is deprecated. Use the 'config' input with embedded TOML. See documentation for migration details.",
-      )
-
-      let entries =
-        string.split(raw, " ")
-        |> list.map(string.trim)
-        |> list.filter(fn(s) { s != "" })
-
-      let exemptions =
-        list.fold(entries, Exemptions(exact: [], ends_with: []), fn(acc, entry) {
-          case string.starts_with(entry, "@") {
-            True -> Exemptions(..acc, ends_with: [entry, ..acc.ends_with])
-            False -> Exemptions(..acc, exact: [entry, ..acc.exact])
-          }
-        })
-
-      config.Config(..config.default(), exempt_authors: exemptions)
-    }
+    ConfigConflict(path:) ->
+      "The 'config' input is not allowed because a default branch config file exists ("
+      <> path
+      <> "). DCO policy is read from the default branch; remove the 'config' input from the workflow."
+    RemovedInputsSet(inputs) ->
+      list.map(inputs, describe_removed_input) |> string.join("\n")
   }
 }

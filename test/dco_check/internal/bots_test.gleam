@@ -1,156 +1,166 @@
 import dco_check/config.{
-  AllBots, Allowlist, CiCd, DependencyUpdaters, NoBots, Release, WellKnownBots,
+  AiAgents, AllBots, CiCd, DependencyUpdaters, NoBots, Release, WellKnownBots,
 }
+import dco_check/internal/ai_agents
 import dco_check/internal/bots
-import dco_check/internal/trailers
 
-// --- is_bot_exempt: AllBots ---
+fn registry() -> ai_agents.Registry {
+  ai_agents.effective(extra_agent_emails: [])
+}
+
+const all_categories =
+  WellKnownBots(categories: [DependencyUpdaters, CiCd, Release])
+
+/// Exemption with no excluded categories.
+fn exempt(
+  login: String,
+  policy: config.BotPolicy,
+  allow: List(String),
+) -> Bool {
+  exempt_excluding(login, policy, allow, [])
+}
+
+fn exempt_excluding(
+  login: String,
+  policy: config.BotPolicy,
+  allow: List(String),
+  exclude: List(config.BotCategory),
+) -> Bool {
+  bots.is_bot_exempt(login:, policy:, allow:, exclude:, registry: registry())
+}
+
+// --- AllBots ---
 
 pub fn all_bots_exempts_any_login_test() {
-  assert bots.is_bot_exempt(login: "random[bot]", policy: AllBots) == True
+  assert exempt("random[bot]", AllBots, []) == True
 }
 
-// --- is_bot_exempt: NoBots ---
+// --- NoBots ---
 
 pub fn no_bots_rejects_all_test() {
-  assert bots.is_bot_exempt(login: "dependabot[bot]", policy: NoBots) == False
+  assert exempt("dependabot[bot]", NoBots, []) == False
 }
 
-// --- is_bot_exempt: WellKnownBots ---
+// --- WellKnownBots ---
 
-pub fn well_known_empty_categories_matches_all_test() {
-  assert bots.is_bot_exempt(
-      login: "dependabot[bot]",
-      policy: WellKnownBots(categories: []),
-    )
-    == True
-  assert bots.is_bot_exempt(
-      login: "github-actions[bot]",
-      policy: WellKnownBots(categories: []),
-    )
-    == True
-  assert bots.is_bot_exempt(
-      login: "release-please[bot]",
-      policy: WellKnownBots(categories: []),
-    )
-    == True
+pub fn well_known_all_categories_test() {
+  assert exempt("dependabot[bot]", all_categories, []) == True
+  assert exempt("github-actions[bot]", all_categories, []) == True
+  assert exempt("release-please[bot]", all_categories, []) == True
 }
 
 pub fn well_known_specific_category_test() {
-  assert bots.is_bot_exempt(
-      login: "dependabot[bot]",
-      policy: WellKnownBots(categories: [DependencyUpdaters]),
-    )
-    == True
-  assert bots.is_bot_exempt(
-      login: "github-actions[bot]",
-      policy: WellKnownBots(categories: [DependencyUpdaters]),
-    )
-    == False
+  let policy = WellKnownBots(categories: [DependencyUpdaters])
+  assert exempt("dependabot[bot]", policy, []) == True
+  assert exempt("github-actions[bot]", policy, []) == False
 }
 
 pub fn well_known_rejects_unknown_bot_test() {
-  assert bots.is_bot_exempt(
-      login: "my-custom[bot]",
-      policy: WellKnownBots(categories: []),
-    )
-    == False
+  assert exempt("my-custom[bot]", all_categories, []) == False
+}
+
+pub fn well_known_never_exempts_ai_bots_test() {
+  assert exempt("claude[bot]", all_categories, []) == False
 }
 
 pub fn well_known_case_insensitive_test() {
-  assert bots.is_bot_exempt(
-      login: "Dependabot[bot]",
-      policy: WellKnownBots(categories: [DependencyUpdaters]),
-    )
-    == True
-}
-
-pub fn well_known_ci_cd_category_test() {
-  assert bots.is_bot_exempt(
-      login: "github-actions[bot]",
-      policy: WellKnownBots(categories: [CiCd]),
+  assert exempt(
+      "Dependabot[bot]",
+      WellKnownBots(categories: [DependencyUpdaters]),
+      [],
     )
     == True
 }
 
 pub fn well_known_release_category_test() {
-  assert bots.is_bot_exempt(
-      login: "semantic-release[bot]",
-      policy: WellKnownBots(categories: [Release]),
-    )
-    == True
-  assert bots.is_bot_exempt(
-      login: "release-please[bot]",
-      policy: WellKnownBots(categories: [Release]),
-    )
-    == True
+  let policy = WellKnownBots(categories: [Release])
+  assert exempt("semantic-release[bot]", policy, []) == True
+  assert exempt("release-please[bot]", policy, []) == True
 }
 
-// --- is_bot_exempt: Allowlist ---
+// --- allow list applies under every policy ---
 
-pub fn allowlist_matches_listed_bot_test() {
-  assert bots.is_bot_exempt(
-      login: "dependabot[bot]",
-      policy: Allowlist(allow: ["dependabot[bot]"]),
-    )
-    == True
+pub fn allow_exempts_under_none_test() {
+  assert exempt("mybot[bot]", NoBots, ["mybot[bot]"]) == True
 }
 
-pub fn allowlist_rejects_unlisted_bot_test() {
-  assert bots.is_bot_exempt(
-      login: "renovate[bot]",
-      policy: Allowlist(allow: ["dependabot[bot]"]),
-    )
+pub fn allow_rejects_unlisted_under_none_test() {
+  assert exempt("renovate[bot]", NoBots, ["dependabot[bot]"]) == False
+}
+
+pub fn allow_adds_to_well_known_test() {
+  let policy = WellKnownBots(categories: [DependencyUpdaters])
+  let allow = ["mybot[bot]"]
+  assert exempt("mybot[bot]", policy, allow) == True
+  assert exempt("dependabot[bot]", policy, allow) == True
+  assert exempt("other[bot]", policy, allow) == False
+}
+
+pub fn allow_case_insensitive_test() {
+  assert exempt("Dependabot[bot]", NoBots, ["DEPENDABOT[bot]"]) == True
+}
+
+// --- bots.exclude-categories ---
+
+pub fn ai_bot_exempt_under_all_without_exclusion_test() {
+  assert exempt("claude[bot]", AllBots, []) == True
+}
+
+pub fn excluding_ai_denies_ai_bots_under_all_test() {
+  assert exempt_excluding("claude[bot]", AllBots, [], [AiAgents]) == False
+  assert exempt_excluding("Copilot", AllBots, [], [AiAgents]) == False
+  assert exempt_excluding("random[bot]", AllBots, [], [AiAgents]) == True
+}
+
+pub fn excluding_a_well_known_category_test() {
+  assert exempt_excluding("release-please[bot]", AllBots, [], [Release])
     == False
+  assert exempt_excluding("release-please[bot]", all_categories, [], [Release])
+    == False
+  assert exempt_excluding("dependabot[bot]", all_categories, [], [Release])
+    == True
 }
 
-pub fn allowlist_case_insensitive_test() {
+pub fn allow_list_beats_exclusion_test() {
+  assert exempt_excluding("claude[bot]", AllBots, ["claude[bot]"], [AiAgents])
+    == True
+  assert exempt_excluding("Claude[bot]", NoBots, ["claude[bot]"], [AiAgents])
+    == True
+}
+
+pub fn excluded_category_test() {
+  assert bots.excluded_category(
+      login: "cursor[bot]",
+      exclude: [Release, AiAgents],
+      registry: registry(),
+    )
+    == Ok(AiAgents)
+  assert bots.excluded_category(
+      login: "dependabot[bot]",
+      exclude: [Release, AiAgents],
+      registry: registry(),
+    )
+    == Error(Nil)
+}
+
+pub fn extra_agent_emails_do_not_affect_bot_logins_test() {
+  // Bot exclusion looks only at the GitHub login; extra agent emails are for trailers.
+  let registry =
+    ai_agents.effective(extra_agent_emails: ["in-house@example.com"])
   assert bots.is_bot_exempt(
-      login: "Dependabot[bot]",
-      policy: Allowlist(allow: ["dependabot[bot]"]),
+      login: "in-house-ai[bot]",
+      policy: AllBots,
+      allow: [],
+      exclude: [AiAgents],
+      registry:,
     )
     == True
 }
 
-// --- has_ai_attribution ---
-
-pub fn no_ai_trailers_test() {
-  let msg = "feat: add thing\n\nSigned-off-by: Alice <alice@example.com>"
-  assert bots.has_ai_attribution(trailers.parse(msg, trailers.Strict)) == False
-}
-
-pub fn assisted_by_claude_test() {
-  let msg =
-    "feat: add thing\n\nAssisted-by: Claude (Anthropic)\nSigned-off-by: Alice <alice@example.com>"
-  assert bots.has_ai_attribution(trailers.parse(msg, trailers.Strict)) == True
-}
-
-pub fn co_authored_by_copilot_test() {
-  let msg =
-    "feat: add thing\n\nCo-authored-by: GitHub Copilot\nSigned-off-by: Alice <alice@example.com>"
-  assert bots.has_ai_attribution(trailers.parse(msg, trailers.Strict)) == True
-}
-
-pub fn ai_trailer_case_insensitive_value_test() {
-  let msg =
-    "feat: add thing\n\nAssisted-by: GEMINI (Google)\nSigned-off-by: Alice <alice@example.com>"
-  assert bots.has_ai_attribution(trailers.parse(msg, trailers.Strict)) == True
-}
-
-pub fn non_ai_co_authored_by_test() {
-  let msg =
-    "feat: add thing\n\nCo-authored-by: Bob <bob@example.com>\nSigned-off-by: Alice <alice@example.com>"
-  assert bots.has_ai_attribution(trailers.parse(msg, trailers.Strict)) == False
-}
-
-pub fn assisted_by_kiro_test() {
-  let msg =
-    "feat: add thing\n\nAssisted-by: Kiro\nSigned-off-by: Alice <alice@example.com>"
-  assert bots.has_ai_attribution(trailers.parse(msg, trailers.Strict)) == True
-}
-
-pub fn assisted_by_cursor_test() {
-  let msg =
-    "feat: add thing\n\nAssisted-by: Cursor AI\nSigned-off-by: Alice <alice@example.com>"
-  assert bots.has_ai_attribution(trailers.parse(msg, trailers.Strict)) == True
+pub fn is_ai_agent_test() {
+  assert bots.is_ai_agent(
+    login: "devin-ai-integration[bot]",
+    registry: registry(),
+  )
+  assert !bots.is_ai_agent(login: "dependabot[bot]", registry: registry())
 }

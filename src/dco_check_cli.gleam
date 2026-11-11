@@ -5,9 +5,9 @@
 //// - Live: calls the GitHub API via fetch (requires token)
 
 import argv
-import dco_check
 import dco_check/config
 import dco_check/error
+import dco_check/format
 import dco_check/pipeline
 import dco_check/types.{type DcoRecord, type DcoSummary}
 import dco_check_cli/fixture_transport
@@ -85,6 +85,8 @@ fn setup() -> Result(
       |> result.map_error(DcoCheckError)
   })
 
+  list.each(cfg.warnings, pontil.warning)
+
   case args {
     ["fixture", path] -> {
       fixture_transport.install(path)
@@ -156,7 +158,7 @@ fn print_results(dco_summary: DcoSummary, records: List(DcoRecord)) -> Nil {
         list.take(failures, 20)
         |> list.fold(table, fn(t, r) {
           summary.row(t, [
-            dco_check.format_sha(r.sha),
+            format.sha(r.sha),
             r.subject,
             format_disposition(r),
           ])
@@ -198,9 +200,20 @@ fn print_results(dco_summary: DcoSummary, records: List(DcoRecord)) -> Nil {
           ])
         })
 
-      elements
-      |> summary.h3("Commits")
-      |> summary.table(table)
+      let elements =
+        elements
+        |> summary.h3("Commits")
+        |> summary.table(table)
+
+      case list.any(groups, is_flagged) {
+        True ->
+          elements
+          |> summary.raw(
+            format.ai_signoff_marker <> " " <> format.ai_signoff_footnote,
+          )
+          |> summary.eol
+        False -> elements
+      }
     }
   }
 
@@ -217,7 +230,12 @@ type SuccessGroup {
 fn failure_records(records: List(DcoRecord)) -> List(DcoRecord) {
   list.filter(records, fn(r) {
     case r.disposition {
-      types.NoSignoffs | types.NoMatch(..) | types.InvalidCommit -> True
+      types.NoSignoffs
+      | types.NoMatch(..)
+      | types.InvalidCommit
+      | types.AiSignoffRejected(..)
+      | types.AiCoAuthorRejected(..)
+      | types.AiTraceRejected(..) -> True
       _ -> False
     }
   })
@@ -262,26 +280,43 @@ fn build_success_groups(
 }
 
 fn success_group_for(record: DcoRecord) -> Result(SuccessGroup, Nil) {
+  use group <- result.map(disposition_success_group(record))
+
+  // Flag commits whose AI sign-off was ignored; rows with different flags group apart.
+  case format.has_ignored_ai_signoff(record) {
+    True ->
+      SuccessGroup(..group, note: group.note <> " " <> format.ai_signoff_marker)
+    False -> group
+  }
+}
+
+/// Whether a success row carries the ignored-AI-sign-off marker.
+fn is_flagged(group: SuccessGroup) -> Bool {
+  string.contains(group.note, format.ai_signoff_marker)
+}
+
+fn disposition_success_group(record: DcoRecord) -> Result(SuccessGroup, Nil) {
   case record.disposition {
-    types.Passed -> {
-      let identity = case record.identities {
-        [id, ..] -> id.name <> " <" <> id.email <> ">"
-        [] -> "unknown"
-      }
+    types.Passed(identity: id) -> {
+      let identity = id.name <> " <" <> id.email <> ">"
       Ok(SuccessGroup(identity:, count: 1, note: "signed off"))
     }
-    types.Exempted(identity:, match:) -> {
+    types.Exempted(identity:, match:, alias:) -> {
       let label = identity.name <> " <" <> identity.email <> ">"
-      let note = case match {
-        types.ExactEmail -> "exempt"
-        types.DomainPattern(pattern) -> "exempt domain " <> pattern
-      }
-      Ok(SuccessGroup(identity: label, count: 1, note:))
+      Ok(SuccessGroup(
+        identity: label,
+        count: 1,
+        note: format.exemption_note(match:, alias:),
+      ))
     }
     types.BotCommit(login:, ..) ->
       Ok(SuccessGroup(identity: login, count: 1, note: "bot, skipped"))
     types.MergeCommit ->
-      Ok(SuccessGroup(identity: "merge commits", count: 1, note: "skipped"))
+      Ok(SuccessGroup(
+        identity: "merge commits",
+        count: 1,
+        note: "no sign-off, skipped",
+      ))
     types.Skipped(reason) ->
       Ok(SuccessGroup(identity: "skipped", count: 1, note: reason))
     _ -> Error(Nil)
@@ -293,10 +328,16 @@ fn format_disposition(record: DcoRecord) -> String {
     types.NoSignoffs -> "No Signed-off-by trailer found."
     types.NoMatch(expected:, found:) ->
       "Expected "
-      <> list.map(expected, dco_check.format_signoff) |> string.join(" or ")
+      <> list.map(expected, format.signoff) |> string.join(" or ")
       <> ", found "
-      <> list.map(found, dco_check.format_signoff) |> string.join(", ")
+      <> list.map(found, format.signoff) |> string.join(", ")
     types.InvalidCommit -> "No valid commit identity."
+    types.AiSignoffRejected(agents:) ->
+      format.describe_ai_signoff_rejected(list.map(agents, format.ai_match))
+    types.AiCoAuthorRejected(agents:) ->
+      format.describe_ai_co_author_rejected(list.map(agents, format.ai_match))
+    types.AiTraceRejected(agents:) ->
+      format.describe_ai_trace_rejected(list.map(agents, format.ai_match))
     _ -> ""
   }
 }
