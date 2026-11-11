@@ -1,5 +1,58 @@
 # KineticCafe/actions-dco Changelog
 
+## 4.0.0 / 2026-11-16
+
+This release has breaking changes. See
+[Migration](README.md#migration-from-v3) for details.
+
+### Breaking changes
+
+- The default bot policy is `"well-known"` instead of `"all"`. Bots outside
+  the well-known list, including AI bots such as Copilot, now require a
+  sign-off. Set `bots.policy = "all"` to keep the old behaviour.
+
+  Omitted categories still default to all categories.
+
+- The `bots.allow` option previously only available under the removed
+  `"allowlist"` policy is available for all policies.
+
+- A `Signed-off-by` matching a known AI agent fails the commit.
+
+- Merge commits are skipped _only_ if they do not contain `Signed-off-by`
+  trailers.
+
+- Deprecated configuration options have been removed. TOML configuration
+  parsing is stricter. The presence of _both_ a `config` input on the action
+  _and_ the presence of a default branch configuration is an error.
+
+- The deprecated `exempt-authors` action input has been removed; its presence
+  will fail the run.
+
+### Features
+
+- New AI validation features have been added. See
+  [AI Agents](README.md#ai-agents).
+
+- `bots.exclude-categories`: under `bots.policy = "all"`, specific bots can be
+  excluded, including known AI agents with bot accounts.
+
+- Author exemption checks the author's `alias-signoffs.aliases` addresses
+  after their own address, so a GitHub no-reply address aliased to an exempt
+  address is exempt.
+
+### Fixes
+
+- Email comparison for `exempt-authors` is case-insensitive.
+
+- Email validation (used in various places) properly allows single-character
+  domain labels and permits GitHub `[bot]` suffixes.
+
+- Improved email masking semantics and better Markdown and HTML escaping in
+  comments and summaries.
+
+- When a commit is accepted, the summary report includes the sign-off identity
+  that was matched, not the first identity on the commit.
+
 ## 3.2.1 / 2026-11-09
 
 - Fixed an issue with summaries and comments where the outputs were not
@@ -118,7 +171,7 @@ Pinning to the specific tag reference is strongly recommended.
 
 - Sign-off trailers MUST have both name and email fields.
 
-### New Features
+### Features
 
 - TOML configuration. For the initial version, `actions-dco` supports inline
   configuration with the `config` input. Future versions will support config
@@ -129,8 +182,8 @@ Pinning to the specific tag reference is strongly recommended.
   version of `actions-dco`, but this need not be the case any further. Bots
   may be configured to require explicit `signed-off-by` trailers (`none`),
   only `well-known` bots (which can be restricted further by
-  `bot.categories`), or only specific bots are exempted (`allowlist` with
-  `bot.allow`).
+  `bots.categories`), or only specific bots are exempted (`allowlist` with
+  `bots.allow`).
 
 - Sign-off aliasing. When using the web interface for committing, you may be
   prompted to use your private Git commit alias, but you might still set
@@ -225,4 +278,4 @@ Pinning to the specific tag reference is strongly recommended.
 [issue-169]: https://github.com/KineticCafe/actions-dco/issues/169
 [issue-198]: https://github.com/KineticCafe/actions-dco/issues/198
 [issue-216]: https://github.com/KineticCafe/actions-dco/issues/216
-[issue-222]: https://github.com/KineticCafe/actions-dco/pull/222
+[pull-222]: https://github.com/KineticCafe/actions-dco/pull/222
