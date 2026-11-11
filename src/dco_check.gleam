@@ -7,7 +7,9 @@
 ////
 //// [dco]: https://developercertificate.org
 
-import dco_check/config.{type Config, type Exemptions}
+import dco_check/config.{type Config, type Exemptions, AiSignoffRequireHuman}
+import dco_check/format
+import dco_check/internal/ai_agents
 import dco_check/internal/bots
 import dco_check/internal/email
 import dco_check/internal/github/types as github_types
@@ -20,8 +22,8 @@ import gleam/dict
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/result
 import gleam/string
-import houdini
 import pontil
 
 pub const package_name = "KineticCafe/dco-check"
@@ -53,10 +55,21 @@ pub fn get_dco_status(
 
   let count = list.length(commits)
 
+  // Build the AI agent registries once for the whole run. The full registry decides
+  // Signed-off-by handling and bot exclusion; the relaxed one, omitting
+  // `ai.ignore-agents`, is used by the Co-authored-by and trace checks.
+  let registries =
+    Registries(
+      full: config.ai_registry(config),
+      relaxed: config.ai_relaxed_registry(config),
+    )
+
   pontil.debug("get_dco_status: starting evaluate_commit map")
 
   let records =
-    list.map(commits, fn(commit) { evaluate_commit(commit:, url:, config:) })
+    list.map(commits, fn(commit) {
+      evaluate_commit(commit:, url:, config:, registries:)
+    })
 
   pontil.debug("get_dco_status: evaluate_commit map complete, building summary")
 
@@ -67,11 +80,20 @@ pub fn get_dco_status(
   #(summary, records)
 }
 
+/// The AI agent registries for a run.
+type Registries {
+  Registries(full: ai_agents.Registry, relaxed: ai_agents.Registry)
+}
+
 /// Process a single commit through the DCO pipeline.
+///
+/// Stage order matters: the AI checks run first so that no exemption (merge, bot, author
+/// email) can rescue a commit they reject.
 fn evaluate_commit(
   commit commit: github_types.Commit,
   url url: String,
   config config: Config,
+  registries registries: Registries,
 ) -> DcoRecord {
   let git_commit = commit.commit
   let sha = commit.sha
@@ -92,10 +114,11 @@ fn evaluate_commit(
     t.DcoRecord(
       sha:,
       url: url <> "/commits/" <> sha,
-      subject: commit_subject(git_commit.message),
+      subject: format.subject(git_commit.message),
       author:,
       committer:,
       identities: resolve_identities([author, committer]),
+      ignored_ai_signoffs: [],
       disposition: t.Unprocessed,
     )
 
@@ -105,8 +128,26 @@ fn evaluate_commit(
 
   pontil.debug("evaluate_commit: entering pipeline")
 
-  use record <- check_merge(commit, record)
-  use record <- check_bot(commit, record, config, parsed_trailers)
+  use record <- check_ai_signoff(
+    record,
+    parsed_trailers,
+    config,
+    registries.full,
+  )
+  use record <- check_ai_co_author(
+    record,
+    parsed_trailers,
+    config,
+    registries.relaxed,
+  )
+  use record <- check_ai_trace(
+    record,
+    parsed_trailers,
+    config,
+    registries.relaxed,
+  )
+  use record <- check_merge(commit, record, parsed_trailers)
+  use record <- check_bot(commit, record, config, registries.full)
   use record <- check_identities(record)
 
   check_signoffs(
@@ -114,31 +155,237 @@ fn evaluate_commit(
     trailers: parsed_trailers,
     exemptions: config.exempt_authors,
     aliases: config.aliases,
+    registry: registries.full,
   )
 }
 
-/// If merge commit, resolve immediately.
-fn check_merge(
-  commit: github_types.Commit,
+/// A Signed-off-by with a known AI agent fails commit validation.
+///
+/// DCO is about human authorship and responsibility, and AI agents have no legal
+/// authorship or responsiblity to claim.
+///
+/// The _only_ exception is with the configuration option `ai.signed-off-by` set to
+/// `"require-human"`. When this setting is enabled, the commit validation failure will be
+/// changed to a warning _if_ there is a matching human author or committer sign-off.
+fn check_ai_signoff(
   record: DcoRecord,
+  parsed_trailers: List(#(String, String)),
+  config: Config,
+  registry: ai_agents.Registry,
   continue: fn(DcoRecord) -> DcoRecord,
 ) -> DcoRecord {
-  case commit.parents {
-    [_, _, ..] -> {
-      pontil.debug("commit " <> record.sha <> ": skipping merge commit")
-      t.DcoRecord(..record, disposition: t.MergeCommit)
+  case ai_matches(trailers: parsed_trailers, key: "signed-off-by", registry:) {
+    [] -> continue(record)
+    agents -> {
+      let tolerated =
+        config.ai.signed_off_by == AiSignoffRequireHuman
+        && has_human_signoff(
+          record:,
+          trailers: parsed_trailers,
+          config:,
+          registry:,
+        )
+
+      use <- bool.lazy_guard(tolerated, return: fn() {
+        pontil.warning(
+          "commit "
+          <> record.sha
+          <> ": ignoring Signed-off-by from AI agent "
+          <> agent_names(agents)
+          <> " because a human sign-off is present"
+          <> " (ai.signed-off-by = \"require-human\")."
+          <> " An AI agent cannot certify the DCO.",
+        )
+        continue(t.DcoRecord(..record, ignored_ai_signoffs: agents))
+      })
+
+      pontil.debug(
+        "commit " <> record.sha <> ": Signed-off-by names an AI agent. Failed.",
+      )
+      t.DcoRecord(..record, disposition: t.AiSignoffRejected(agents:))
     }
-    _ -> continue(record)
   }
 }
 
-/// If bot commit from an allowed bot, resolve immediately.
-/// Checks against the configured bot policy and AI trailer detection.
+fn agent_names(agents: List(t.AiMatch)) -> String {
+  list.map(agents, fn(a) { a.agent }) |> list.unique |> string.join(", ")
+}
+
+/// Whether a non-AI Signed-off-by matches the commit's author or committer. Exemptions are
+/// deliberately not considered: only a human sign-off counts as a human certifying.
+fn has_human_signoff(
+  record record: DcoRecord,
+  trailers parsed_trailers: List(#(String, String)),
+  config config: Config,
+  registry registry: ai_agents.Registry,
+) -> Bool {
+  get_commit_signoffs(sha: record.sha, trailers: parsed_trailers)
+  |> list.filter(fn(signoff) {
+    result.is_error(ai_agents.match_email(registry:, email: signoff.email))
+  })
+  |> list.any(fn(signoff) {
+    list.any(record.identities, fn(id) {
+      identity_matches(signoff:, id:, aliases: config.aliases)
+    })
+  })
+}
+
+/// `ai.co-authored-by`: a Co-authored-by naming a known AI agent (other than one in
+/// `ai.ignore-agents`) is ignored, warned about, or fails the commit. Off by default.
+///
+/// The agent assisted; it should be attributed with Assisted-by.
+fn check_ai_co_author(
+  record: DcoRecord,
+  parsed_trailers: List(#(String, String)),
+  config: Config,
+  registry: ai_agents.Registry,
+  continue: fn(DcoRecord) -> DcoRecord,
+) -> DcoRecord {
+  use <- bool.guard(
+    config.ai.co_authored_by == config.AiIgnore,
+    return: continue(record),
+  )
+
+  case ai_matches(trailers: parsed_trailers, key: "co-authored-by", registry:) {
+    [] -> continue(record)
+    agents ->
+      case config.ai.co_authored_by {
+        config.AiReject -> {
+          pontil.debug(
+            "commit "
+            <> record.sha
+            <> ": Co-authored-by names an AI agent. Failed.",
+          )
+          t.DcoRecord(..record, disposition: t.AiCoAuthorRejected(agents:))
+        }
+        _ -> {
+          pontil.warning(
+            "commit "
+            <> record.sha
+            <> ": Co-authored-by names AI agent "
+            <> agent_names(agents)
+            <> ". "
+            <> format.assisted_by_advice,
+          )
+          continue(record)
+        }
+      }
+  }
+}
+
+/// `ai.trace-detection`: when the commit's author or committer is a known AI agent (other
+/// than one in `ai.ignore-agents`) and the commit carries no Assisted-by trailer, the
+/// commit is warned about or fails. Off by default.
+fn check_ai_trace(
+  record: DcoRecord,
+  parsed_trailers: List(#(String, String)),
+  config: Config,
+  registry: ai_agents.Registry,
+  continue: fn(DcoRecord) -> DcoRecord,
+) -> DcoRecord {
+  use <- bool.guard(
+    config.ai.trace_detection == config.AiIgnore,
+    return: continue(record),
+  )
+  use <- bool.guard(
+    list.any(parsed_trailers, fn(trailer) { trailer.0 == "assisted-by" }),
+    return: continue(record),
+  )
+
+  let agents =
+    [record.author, record.committer]
+    |> list.filter_map(fn(user) {
+      case user {
+        Some(github_types.GitUser(email: Some(email_addr), name:, ..)) ->
+          ai_agents.match_email(registry:, email: email_addr)
+          |> result.map(fn(agent) {
+            t.AiMatch(
+              agent:,
+              identity: option.unwrap(name, "") <> " <" <> email_addr <> ">",
+            )
+          })
+        _ -> Error(Nil)
+      }
+    })
+    |> list.unique
+
+  case agents, config.ai.trace_detection {
+    [], _ -> continue(record)
+    _, config.AiReject -> {
+      pontil.debug(
+        "commit "
+        <> record.sha
+        <> ": author or committer is an AI agent and there is no Assisted-by. Failed.",
+      )
+      t.DcoRecord(..record, disposition: t.AiTraceRejected(agents:))
+    }
+    _, _ -> {
+      pontil.warning(
+        "commit "
+        <> record.sha
+        <> ": author or committer is AI agent "
+        <> agent_names(agents)
+        <> " and the commit has no Assisted-by trailer. "
+        <> format.assisted_by_advice,
+      )
+      continue(record)
+    }
+  }
+}
+
+/// Trailers with the given (lowercase) key whose identity is in the AI agent registry.
+fn ai_matches(
+  trailers parsed_trailers: List(#(String, String)),
+  key key: String,
+  registry registry: ai_agents.Registry,
+) -> List(t.AiMatch) {
+  list.filter_map(parsed_trailers, fn(trailer) {
+    let #(trailer_key, value) = trailer
+    use <- bool.guard(trailer_key != key, return: Error(Nil))
+    ai_agents.match_identity(registry:, value:)
+    |> result.map(fn(agent) { t.AiMatch(agent:, identity: value) })
+  })
+}
+
+/// A merge commit with no Signed-off-by auto-passes. A merge commit that carries a
+/// Signed-off-by (`git merge --signoff`) is validated like any other commit. Other
+/// trailers (ticket IDs, review tools) do not count.
+fn check_merge(
+  commit: github_types.Commit,
+  record: DcoRecord,
+  parsed_trailers: List(#(String, String)),
+  continue: fn(DcoRecord) -> DcoRecord,
+) -> DcoRecord {
+  let has_signoff =
+    list.any(parsed_trailers, fn(trailer) { trailer.0 == "signed-off-by" })
+
+  case commit.parents, has_signoff {
+    [_, _, ..], False -> {
+      pontil.debug(
+        "commit " <> record.sha <> ": merge commit without sign-off, passing",
+      )
+      t.DcoRecord(..record, disposition: t.MergeCommit)
+    }
+    [_, _, ..], True -> {
+      pontil.debug(
+        "commit " <> record.sha <> ": merge commit with sign-off, checking",
+      )
+      continue(record)
+    }
+    _, _ -> continue(record)
+  }
+}
+
+/// Decide whether a bot-authored commit needs a sign-off. A bot is exempt when it is in
+/// `bots.allow` (always, even an AI bot) or, failing that, when it is not in a
+/// `bots.exclude-categories` category and the bot policy allows it. A non-exempt bot
+/// commit falls through to normal sign-off matching. The AI checks have already run;
+/// `bots.allow` does not affect them.
 fn check_bot(
   commit: github_types.Commit,
   record: DcoRecord,
   config: Config,
-  parsed_trailers: List(#(String, String)),
+  registry: ai_agents.Registry,
   continue: fn(DcoRecord) -> DcoRecord,
 ) -> DcoRecord {
   case commit.author {
@@ -149,64 +396,51 @@ fn check_bot(
       email:,
       ..,
     ))) -> {
-      case bots.is_bot_exempt(login, config.bots) {
-        False -> {
-          pontil.debug(
-            "commit "
-            <> record.sha
-            <> ": bot "
-            <> login
-            <> " not in exempt list, requiring sign-off",
-          )
-          continue(record)
-        }
-        True ->
-          check_bot_ai(
-            record:,
-            config:,
-            parsed_trailers:,
-            login:,
-            name:,
-            email:,
-            continue:,
-          )
-      }
+      let exempt =
+        bots.is_bot_exempt(
+          login:,
+          policy: config.bots,
+          allow: config.bot_allow,
+          exclude: config.bot_exclude,
+          registry:,
+        )
+
+      use <- bool.lazy_guard(bool.negate(exempt), return: fn() {
+        pontil.debug(bot_denied_message(
+          sha: record.sha,
+          login:,
+          config:,
+          registry:,
+        ))
+        continue(record)
+      })
+
+      pontil.debug("commit " <> record.sha <> ": skipping exempt bot " <> login)
+      t.DcoRecord(..record, disposition: t.BotCommit(login:, name:, email:))
     }
     _ -> continue(record)
   }
 }
 
-fn check_bot_ai(
-  record record: DcoRecord,
-  config config: Config,
-  parsed_trailers parsed_trailers: List(#(String, String)),
+fn bot_denied_message(
+  sha sha: String,
   login login: String,
-  name name: Option(String),
-  email email: Option(String),
-  continue continue: fn(DcoRecord) -> DcoRecord,
-) -> DcoRecord {
-  // Short-circuit: skip AI check entirely when disabled
-  use <- bool.guard(bool.negate(config.ai_detection), return: {
-    pontil.debug("commit " <> record.sha <> ": skipping exempt bot " <> login)
-    t.DcoRecord(..record, disposition: t.BotCommit(login:, name:, email:))
-  })
-
-  case bots.has_ai_attribution(parsed_trailers) {
-    True -> {
-      pontil.warning(
-        "commit "
-        <> record.sha
-        <> ": AI attribution detected on bot commit "
-        <> login
-        <> ", requiring sign-off",
-      )
-      continue(record)
-    }
-    False -> {
-      pontil.debug("commit " <> record.sha <> ": skipping exempt bot " <> login)
-      t.DcoRecord(..record, disposition: t.BotCommit(login:, name:, email:))
-    }
+  config config: Config,
+  registry registry: ai_agents.Registry,
+) -> String {
+  let reason = case
+    bots.excluded_category(login:, exclude: config.bot_exclude, registry:)
+  {
+    Ok(category) -> "is in excluded category " <> config.category_name(category)
+    Error(Nil) -> "not in exempt list"
   }
+  "commit "
+  <> sha
+  <> ": bot "
+  <> login
+  <> " "
+  <> reason
+  <> ", requiring sign-off"
 }
 
 /// If no valid identities can be derived, fail immediately.
@@ -233,9 +467,17 @@ fn check_signoffs(
   trailers parsed_trailers: List(#(String, String)),
   exemptions exemptions: Exemptions,
   aliases aliases: dict.Dict(String, List(String)),
+  registry registry: ai_agents.Registry,
 ) -> DcoRecord {
-  case get_commit_signoffs(sha: record.sha, trailers: parsed_trailers) {
-    [] -> check_exemption(record:, exemptions:)
+  // Filter out AI agent sign-offs.
+  let signoffs =
+    get_commit_signoffs(sha: record.sha, trailers: parsed_trailers)
+    |> list.filter(fn(signoff) {
+      result.is_error(ai_agents.match_email(registry:, email: signoff.email))
+    })
+
+  case signoffs {
+    [] -> check_exemption(record:, exemptions:, aliases:)
     signoffs -> match_signoffs(record:, signoffs:, aliases:)
   }
 }
@@ -244,10 +486,11 @@ fn check_signoffs(
 fn check_exemption(
   record record: DcoRecord,
   exemptions exemptions: Exemptions,
+  aliases aliases: dict.Dict(String, List(String)),
 ) -> DcoRecord {
-  case find_author_exemption(record:, exemptions:) {
-    Some(#(identity, match)) ->
-      t.DcoRecord(..record, disposition: t.Exempted(identity:, match:))
+  case find_author_exemption(record:, exemptions:, aliases:) {
+    Some(#(identity, match, alias)) ->
+      t.DcoRecord(..record, disposition: t.Exempted(identity:, match:, alias:))
     None -> t.DcoRecord(..record, disposition: t.NoSignoffs)
   }
 }
@@ -263,13 +506,15 @@ fn match_signoffs(
   let identities = record.identities
 
   let matched =
-    list.any(signoffs, fn(signoff) {
-      list.any(identities, fn(id) { identity_matches(signoff:, id:, aliases:) })
+    list.find(identities, fn(id) {
+      list.any(signoffs, fn(signoff) {
+        identity_matches(signoff:, id:, aliases:)
+      })
     })
 
   case matched {
-    True -> t.DcoRecord(..record, disposition: t.Passed)
-    False -> {
+    Ok(identity) -> t.DcoRecord(..record, disposition: t.Passed(identity:))
+    Error(Nil) -> {
       pontil.debug("commit " <> sha <> ": no matching sign-off. Failed.")
       t.DcoRecord(
         ..record,
@@ -371,53 +616,79 @@ fn validate_signoff(
   }
 }
 
-/// Check if the commit author's email matches an exemption pattern.
+/// Check if the commit author is exempt. The author's own email is tried first, then each
+/// of its `alias-signoffs.aliases` addresses (one hop; aliases do not chain). Only the
+/// author's aliases count, never the committer's. Returns the author identity, how it
+/// matched, and the alias address when the match came through an alias.
 pub fn find_author_exemption(
   record record: DcoRecord,
   exemptions exemptions: Exemptions,
-) -> Option(#(Identity, ExemptionMatch)) {
+  aliases aliases: dict.Dict(String, List(String)),
+) -> Option(#(Identity, ExemptionMatch, Option(String))) {
   case record.identities, record.author {
     [], _ -> None
     _, Some(github_types.GitUser(email: Some(email_addr), name: Some(name), ..))
     ->
-      find_email_exemption(
+      find_identity_exemption(
         sha: record.sha,
         identity: t.Identity(name:, email: email_addr),
         exemptions:,
+        aliases:,
       )
     _, _ -> None
   }
 }
 
-fn find_email_exemption(
+fn find_identity_exemption(
   sha sha: String,
   identity identity: Identity,
   exemptions exemptions: Exemptions,
-) -> Option(#(Identity, ExemptionMatch)) {
-  case list.any(exemptions.exact, fn(v) { v == identity.email }) {
+  aliases aliases: dict.Dict(String, List(String)),
+) -> Option(#(Identity, ExemptionMatch, Option(String))) {
+  use <- option.lazy_or(
+    find_email_exemption(sha:, email: identity.email, exemptions:)
+    |> option.map(fn(match) { #(identity, match, None) }),
+  )
+
+  dict.get(aliases, string.lowercase(identity.email))
+  |> result.unwrap([])
+  |> list.find_map(fn(alias) {
+    find_email_exemption(sha:, email: alias, exemptions:)
+    |> option.map(fn(match) { #(identity, match, Some(alias)) })
+    |> option.to_result(Nil)
+  })
+  |> option.from_result
+}
+
+fn find_email_exemption(
+  sha sha: String,
+  email email_addr: String,
+  exemptions exemptions: Exemptions,
+) -> Option(ExemptionMatch) {
+  // Email addresses are compared case-insensitively.
+  let email = string.lowercase(email_addr)
+
+  case list.any(exemptions.exact, fn(v) { string.lowercase(v) == email }) {
     True -> {
       pontil.debug(
-        sha
-        <> ": author '"
-        <> identity.email
-        <> "' exempt from DCO by exact match",
+        sha <> ": author '" <> email_addr <> "' exempt from DCO by exact match",
       )
-      Some(#(identity, t.ExactEmail))
+      Some(t.ExactEmail)
     }
     False ->
       case
         list.find(exemptions.ends_with, fn(v) {
-          string.ends_with(identity.email, v)
+          string.ends_with(email, string.lowercase(v))
         })
       {
         Ok(pattern) -> {
           pontil.debug(
             sha
             <> ": author '"
-            <> identity.email
+            <> email_addr
             <> "' exempt from DCO by domain match",
           )
-          Some(#(identity, t.DomainPattern(pattern)))
+          Some(t.DomainPattern(pattern))
         }
         Error(Nil) -> None
       }
@@ -439,8 +710,8 @@ fn resolve_identities(
   |> list.unique
 }
 
-/// Build summary counts from the processed records.
-fn build_summary(
+/// Build summary counts from the processed records. AI rejections count as failures.
+pub fn build_summary(
   records records: List(DcoRecord),
   total total_commits: Int,
   count evaluated: Int,
@@ -460,9 +731,13 @@ fn build_summary(
     ),
     fn(summary, record) {
       case record.disposition {
-        t.Passed -> t.DcoSummary(..summary, passed: summary.passed + 1)
-        t.NoSignoffs -> t.DcoSummary(..summary, failed: summary.failed + 1)
-        t.NoMatch(..) -> t.DcoSummary(..summary, failed: summary.failed + 1)
+        t.Passed(..) -> t.DcoSummary(..summary, passed: summary.passed + 1)
+        t.NoSignoffs
+        | t.NoMatch(..)
+        | t.AiSignoffRejected(..)
+        | t.AiCoAuthorRejected(..)
+        | t.AiTraceRejected(..) ->
+          t.DcoSummary(..summary, failed: summary.failed + 1)
         t.InvalidCommit -> t.DcoSummary(..summary, invalid: summary.invalid + 1)
         t.Exempted(..) ->
           t.DcoSummary(..summary, exempted: summary.exempted + 1)
@@ -476,49 +751,6 @@ fn build_summary(
       }
     },
   )
-}
-
-pub fn format_signoff(identity: Identity) -> String {
-  "\"" <> identity.name <> " <" <> identity.email <> ">\""
-}
-
-pub fn format_signoff_html(identity: Identity) -> String {
-  identity |> format_signoff |> houdini.escape
-}
-
-/// Format a signoff identity with the email local part masked for public display.
-pub fn format_signoff_masked(identity: Identity) -> String {
-  "\"" <> identity.name <> " <" <> mask_email(identity.email) <> ">\""
-}
-
-/// Mask the local part of an email: "alice@example.com" -> "al…@example.com"
-pub fn mask_email(email: String) -> String {
-  case string.split_once(email, "@") {
-    Ok(#(local, domain)) -> {
-      let len = string.length(local)
-      case len {
-        1 | 2 -> local <> "…@" <> domain
-        _ -> string.slice(local, 0, 2) <> "…@" <> domain
-      }
-    }
-    Error(Nil) -> "…"
-  }
-}
-
-pub fn format_sha(sha: String) -> String {
-  string.slice(sha, 0, 12)
-}
-
-/// Extract the subject (first line) from a commit message, truncated to 50 chars.
-fn commit_subject(message: String) -> String {
-  let subject = case string.split_once(message, "\n") {
-    Ok(#(first, _)) -> first
-    Error(Nil) -> message
-  }
-  case string.length(subject) > 50 {
-    True -> string.slice(subject, 0, 50) <> "…"
-    False -> subject
-  }
 }
 
 fn trailer_mode(parsing: config.TrailerParsing) -> trailers.Mode {

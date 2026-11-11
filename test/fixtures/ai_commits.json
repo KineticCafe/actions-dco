@@ -1,0 +1,278 @@
+{
+  "html_url": "https://github.com/example/repo/compare/base...head",
+  "total_commits": 10,
+  "commits": [
+    {
+      "sha": "1111111111111111111111111111111111111111",
+      "node_id": "C_ai_01",
+      "commit": {
+        "author": { "name": "Alice Example", "email": "alice@example.com", "date": "2026-08-01T10:00:00Z" },
+        "committer": { "name": "Alice Example", "email": "alice@example.com", "date": "2026-08-01T10:00:00Z" },
+        "message": "feat: add parser\n\nSigned-off-by: Alice Example <alice@example.com>",
+        "tree": { "sha": "3577d226c50927a31c484d1d50ce581a3157424a", "url": "https://api.github.com/repos/example/repo/git/trees/3577d226c50927a31c484d1d50ce581a3157424a" },
+        "url": "https://api.github.com/repos/example/repo/git/commits/1111111111111111111111111111111111111111",
+        "comment_count": 0,
+        "verification": { "verified": false, "reason": "unsigned", "signature": null, "payload": null, "verified_at": null }
+      },
+      "url": "https://api.github.com/repos/example/repo/commits/1111111111111111111111111111111111111111",
+      "html_url": "https://github.com/example/repo/commit/1111111111111111111111111111111111111111",
+      "comments_url": "https://api.github.com/repos/example/repo/commits/1111111111111111111111111111111111111111/comments",
+      "author": null,
+      "committer": null,
+      "parents": [
+        { "sha": "0000000000000000000000000000000000000000", "url": "https://api.github.com/repos/example/repo/commits/0000000000000000000000000000000000000000", "html_url": "https://github.com/example/repo/commit/0000000000000000000000000000000000000000" }
+      ]
+    },
+    {
+      "sha": "2222222222222222222222222222222222222222",
+      "node_id": "C_ai_02",
+      "commit": {
+        "author": { "name": "Alice Example", "email": "alice@example.com", "date": "2026-08-01T10:05:00Z" },
+        "committer": { "name": "Alice Example", "email": "alice@example.com", "date": "2026-08-01T10:05:00Z" },
+        "message": "feat: agent-signed change\n\nSigned-off-by: Claude <noreply@anthropic.com>",
+        "tree": { "sha": "3577d226c50927a31c484d1d50ce581a3157424a", "url": "https://api.github.com/repos/example/repo/git/trees/3577d226c50927a31c484d1d50ce581a3157424a" },
+        "url": "https://api.github.com/repos/example/repo/git/commits/2222222222222222222222222222222222222222",
+        "comment_count": 0,
+        "verification": { "verified": false, "reason": "unsigned", "signature": null, "payload": null, "verified_at": null }
+      },
+      "url": "https://api.github.com/repos/example/repo/commits/2222222222222222222222222222222222222222",
+      "html_url": "https://github.com/example/repo/commit/2222222222222222222222222222222222222222",
+      "comments_url": "https://api.github.com/repos/example/repo/commits/2222222222222222222222222222222222222222/comments",
+      "author": null,
+      "committer": null,
+      "parents": [
+        { "sha": "1111111111111111111111111111111111111111", "url": "https://api.github.com/repos/example/repo/commits/1111111111111111111111111111111111111111", "html_url": "https://github.com/example/repo/commit/1111111111111111111111111111111111111111" }
+      ]
+    },
+    {
+      "sha": "3333333333333333333333333333333333333333",
+      "node_id": "C_ai_03",
+      "commit": {
+        "author": { "name": "Alice Example", "email": "alice@example.com", "date": "2026-08-01T10:10:00Z" },
+        "committer": { "name": "Alice Example", "email": "alice@example.com", "date": "2026-08-01T10:10:00Z" },
+        "message": "feat: human and agent both signed\n\nSigned-off-by: Alice Example <alice@example.com>\nSigned-off-by: Claude <noreply@anthropic.com>",
+        "tree": { "sha": "3577d226c50927a31c484d1d50ce581a3157424a", "url": "https://api.github.com/repos/example/repo/git/trees/3577d226c50927a31c484d1d50ce581a3157424a" },
+        "url": "https://api.github.com/repos/example/repo/git/commits/3333333333333333333333333333333333333333",
+        "comment_count": 0,
+        "verification": { "verified": false, "reason": "unsigned", "signature": null, "payload": null, "verified_at": null }
+      },
+      "url": "https://api.github.com/repos/example/repo/commits/3333333333333333333333333333333333333333",
+      "html_url": "https://github.com/example/repo/commit/3333333333333333333333333333333333333333",
+      "comments_url": "https://api.github.com/repos/example/repo/commits/3333333333333333333333333333333333333333/comments",
+      "author": null,
+      "committer": null,
+      "parents": [
+        { "sha": "2222222222222222222222222222222222222222", "url": "https://api.github.com/repos/example/repo/commits/2222222222222222222222222222222222222222", "html_url": "https://github.com/example/repo/commit/2222222222222222222222222222222222222222" }
+      ]
+    },
+    {
+      "sha": "4444444444444444444444444444444444444444",
+      "node_id": "C_ai_04",
+      "commit": {
+        "author": { "name": "Alice Example", "email": "alice@example.com", "date": "2026-08-01T10:15:00Z" },
+        "committer": { "name": "Alice Example", "email": "alice@example.com", "date": "2026-08-01T10:15:00Z" },
+        "message": "feat: assisted by an agent\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>\nSigned-off-by: Alice Example <alice@example.com>",
+        "tree": { "sha": "3577d226c50927a31c484d1d50ce581a3157424a", "url": "https://api.github.com/repos/example/repo/git/trees/3577d226c50927a31c484d1d50ce581a3157424a" },
+        "url": "https://api.github.com/repos/example/repo/git/commits/4444444444444444444444444444444444444444",
+        "comment_count": 0,
+        "verification": { "verified": false, "reason": "unsigned", "signature": null, "payload": null, "verified_at": null }
+      },
+      "url": "https://api.github.com/repos/example/repo/commits/4444444444444444444444444444444444444444",
+      "html_url": "https://github.com/example/repo/commit/4444444444444444444444444444444444444444",
+      "comments_url": "https://api.github.com/repos/example/repo/commits/4444444444444444444444444444444444444444/comments",
+      "author": null,
+      "committer": null,
+      "parents": [
+        { "sha": "3333333333333333333333333333333333333333", "url": "https://api.github.com/repos/example/repo/commits/3333333333333333333333333333333333333333", "html_url": "https://github.com/example/repo/commit/3333333333333333333333333333333333333333" }
+      ]
+    },
+    {
+      "sha": "5555555555555555555555555555555555555555",
+      "node_id": "C_ai_05",
+      "commit": {
+        "author": { "name": "dependabot[bot]", "email": "49699333+dependabot[bot]@users.noreply.github.com", "date": "2026-08-01T10:20:00Z" },
+        "committer": { "name": "GitHub", "email": "noreply@github.com", "date": "2026-08-01T10:20:00Z" },
+        "message": "deps: bump a package\n\nSigned-off-by: Claude <noreply@anthropic.com>",
+        "tree": { "sha": "3577d226c50927a31c484d1d50ce581a3157424a", "url": "https://api.github.com/repos/example/repo/git/trees/3577d226c50927a31c484d1d50ce581a3157424a" },
+        "url": "https://api.github.com/repos/example/repo/git/commits/5555555555555555555555555555555555555555",
+        "comment_count": 0,
+        "verification": { "verified": false, "reason": "unsigned", "signature": null, "payload": null, "verified_at": null }
+      },
+      "url": "https://api.github.com/repos/example/repo/commits/5555555555555555555555555555555555555555",
+      "html_url": "https://github.com/example/repo/commit/5555555555555555555555555555555555555555",
+      "comments_url": "https://api.github.com/repos/example/repo/commits/5555555555555555555555555555555555555555/comments",
+      "author": {
+        "login": "dependabot[bot]",
+        "id": 49699333,
+        "node_id": "MDM6Qm90NDk2OTkzMzM=",
+        "avatar_url": "https://avatars.githubusercontent.com/in/29110?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/dependabot%5Bbot%5D",
+        "html_url": "https://github.com/apps/dependabot",
+        "followers_url": "https://api.github.com/users/dependabot%5Bbot%5D/followers",
+        "following_url": "https://api.github.com/users/dependabot%5Bbot%5D/following{/other_user}",
+        "gists_url": "https://api.github.com/users/dependabot%5Bbot%5D/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/dependabot%5Bbot%5D/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/dependabot%5Bbot%5D/subscriptions",
+        "organizations_url": "https://api.github.com/users/dependabot%5Bbot%5D/orgs",
+        "repos_url": "https://api.github.com/users/dependabot%5Bbot%5D/repos",
+        "events_url": "https://api.github.com/users/dependabot%5Bbot%5D/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/dependabot%5Bbot%5D/received_events",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": null,
+      "parents": [
+        { "sha": "4444444444444444444444444444444444444444", "url": "https://api.github.com/repos/example/repo/commits/4444444444444444444444444444444444444444", "html_url": "https://github.com/example/repo/commit/4444444444444444444444444444444444444444" }
+      ]
+    },
+    {
+      "sha": "6666666666666666666666666666666666666666",
+      "node_id": "C_ai_06",
+      "commit": {
+        "author": { "name": "claude[bot]", "email": "209825114+claude[bot]@users.noreply.github.com", "date": "2026-08-01T10:25:00Z" },
+        "committer": { "name": "claude[bot]", "email": "209825114+claude[bot]@users.noreply.github.com", "date": "2026-08-01T10:25:00Z" },
+        "message": "fix: handle the reported issue",
+        "tree": { "sha": "3577d226c50927a31c484d1d50ce581a3157424a", "url": "https://api.github.com/repos/example/repo/git/trees/3577d226c50927a31c484d1d50ce581a3157424a" },
+        "url": "https://api.github.com/repos/example/repo/git/commits/6666666666666666666666666666666666666666",
+        "comment_count": 0,
+        "verification": { "verified": false, "reason": "unsigned", "signature": null, "payload": null, "verified_at": null }
+      },
+      "url": "https://api.github.com/repos/example/repo/commits/6666666666666666666666666666666666666666",
+      "html_url": "https://github.com/example/repo/commit/6666666666666666666666666666666666666666",
+      "comments_url": "https://api.github.com/repos/example/repo/commits/6666666666666666666666666666666666666666/comments",
+      "author": {
+        "login": "claude[bot]",
+        "id": 209825114,
+        "node_id": "BOT_kgDODOLIcg",
+        "avatar_url": "https://avatars.githubusercontent.com/in/1236702?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/claude%5Bbot%5D",
+        "html_url": "https://github.com/apps/claude",
+        "followers_url": "https://api.github.com/users/claude%5Bbot%5D/followers",
+        "following_url": "https://api.github.com/users/claude%5Bbot%5D/following{/other_user}",
+        "gists_url": "https://api.github.com/users/claude%5Bbot%5D/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/claude%5Bbot%5D/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/claude%5Bbot%5D/subscriptions",
+        "organizations_url": "https://api.github.com/users/claude%5Bbot%5D/orgs",
+        "repos_url": "https://api.github.com/users/claude%5Bbot%5D/repos",
+        "events_url": "https://api.github.com/users/claude%5Bbot%5D/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/claude%5Bbot%5D/received_events",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": null,
+      "parents": [
+        { "sha": "5555555555555555555555555555555555555555", "url": "https://api.github.com/repos/example/repo/commits/5555555555555555555555555555555555555555", "html_url": "https://github.com/example/repo/commit/5555555555555555555555555555555555555555" }
+      ]
+    },
+    {
+      "sha": "7777777777777777777777777777777777777777",
+      "node_id": "C_ai_07",
+      "commit": {
+        "author": { "name": "Copilot", "email": "198982749+Copilot@users.noreply.github.com", "date": "2026-08-01T10:30:00Z" },
+        "committer": { "name": "Alice Example", "email": "alice@example.com", "date": "2026-08-01T10:35:00Z" },
+        "message": "fix: agent draft, human committed\n\nCo-authored-by: Alice Example <alice@example.com>\nSigned-off-by: Alice Example <alice@example.com>",
+        "tree": { "sha": "3577d226c50927a31c484d1d50ce581a3157424a", "url": "https://api.github.com/repos/example/repo/git/trees/3577d226c50927a31c484d1d50ce581a3157424a" },
+        "url": "https://api.github.com/repos/example/repo/git/commits/7777777777777777777777777777777777777777",
+        "comment_count": 0,
+        "verification": { "verified": false, "reason": "unsigned", "signature": null, "payload": null, "verified_at": null }
+      },
+      "url": "https://api.github.com/repos/example/repo/commits/7777777777777777777777777777777777777777",
+      "html_url": "https://github.com/example/repo/commit/7777777777777777777777777777777777777777",
+      "comments_url": "https://api.github.com/repos/example/repo/commits/7777777777777777777777777777777777777777/comments",
+      "author": {
+        "login": "Copilot",
+        "id": 198982749,
+        "node_id": "BOT_kgDOC9w8XQ",
+        "avatar_url": "https://avatars.githubusercontent.com/in/1143301?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Copilot",
+        "html_url": "https://github.com/apps/copilot-swe-agent",
+        "followers_url": "https://api.github.com/users/Copilot/followers",
+        "following_url": "https://api.github.com/users/Copilot/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Copilot/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Copilot/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Copilot/subscriptions",
+        "organizations_url": "https://api.github.com/users/Copilot/orgs",
+        "repos_url": "https://api.github.com/users/Copilot/repos",
+        "events_url": "https://api.github.com/users/Copilot/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Copilot/received_events",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": null,
+      "parents": [
+        { "sha": "6666666666666666666666666666666666666666", "url": "https://api.github.com/repos/example/repo/commits/6666666666666666666666666666666666666666", "html_url": "https://github.com/example/repo/commit/6666666666666666666666666666666666666666" }
+      ]
+    },
+    {
+      "sha": "8888888888888888888888888888888888888888",
+      "node_id": "C_ai_08",
+      "commit": {
+        "author": { "name": "Alice Example", "email": "alice@example.com", "date": "2026-08-01T10:40:00Z" },
+        "committer": { "name": "GitHub", "email": "noreply@github.com", "date": "2026-08-01T10:40:00Z" },
+        "message": "Merge pull request #12 from example/topic\n\nTicket: PROJ-12",
+        "tree": { "sha": "3577d226c50927a31c484d1d50ce581a3157424a", "url": "https://api.github.com/repos/example/repo/git/trees/3577d226c50927a31c484d1d50ce581a3157424a" },
+        "url": "https://api.github.com/repos/example/repo/git/commits/8888888888888888888888888888888888888888",
+        "comment_count": 0,
+        "verification": { "verified": false, "reason": "unsigned", "signature": null, "payload": null, "verified_at": null }
+      },
+      "url": "https://api.github.com/repos/example/repo/commits/8888888888888888888888888888888888888888",
+      "html_url": "https://github.com/example/repo/commit/8888888888888888888888888888888888888888",
+      "comments_url": "https://api.github.com/repos/example/repo/commits/8888888888888888888888888888888888888888/comments",
+      "author": null,
+      "committer": null,
+      "parents": [
+        { "sha": "7777777777777777777777777777777777777777", "url": "https://api.github.com/repos/example/repo/commits/7777777777777777777777777777777777777777", "html_url": "https://github.com/example/repo/commit/7777777777777777777777777777777777777777" },
+        { "sha": "0000000000000000000000000000000000000000", "url": "https://api.github.com/repos/example/repo/commits/0000000000000000000000000000000000000000", "html_url": "https://github.com/example/repo/commit/0000000000000000000000000000000000000000" }
+      ]
+    },
+    {
+      "sha": "9999999999999999999999999999999999999999",
+      "node_id": "C_ai_09",
+      "commit": {
+        "author": { "name": "Alice Example", "email": "alice@example.com", "date": "2026-08-01T10:45:00Z" },
+        "committer": { "name": "Alice Example", "email": "alice@example.com", "date": "2026-08-01T10:45:00Z" },
+        "message": "Merge branch 'main' into topic\n\nSigned-off-by: Alice Example <alice@example.com>",
+        "tree": { "sha": "3577d226c50927a31c484d1d50ce581a3157424a", "url": "https://api.github.com/repos/example/repo/git/trees/3577d226c50927a31c484d1d50ce581a3157424a" },
+        "url": "https://api.github.com/repos/example/repo/git/commits/9999999999999999999999999999999999999999",
+        "comment_count": 0,
+        "verification": { "verified": false, "reason": "unsigned", "signature": null, "payload": null, "verified_at": null }
+      },
+      "url": "https://api.github.com/repos/example/repo/commits/9999999999999999999999999999999999999999",
+      "html_url": "https://github.com/example/repo/commit/9999999999999999999999999999999999999999",
+      "comments_url": "https://api.github.com/repos/example/repo/commits/9999999999999999999999999999999999999999/comments",
+      "author": null,
+      "committer": null,
+      "parents": [
+        { "sha": "8888888888888888888888888888888888888888", "url": "https://api.github.com/repos/example/repo/commits/8888888888888888888888888888888888888888", "html_url": "https://github.com/example/repo/commit/8888888888888888888888888888888888888888" },
+        { "sha": "0000000000000000000000000000000000000000", "url": "https://api.github.com/repos/example/repo/commits/0000000000000000000000000000000000000000", "html_url": "https://github.com/example/repo/commit/0000000000000000000000000000000000000000" }
+      ]
+    },
+    {
+      "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "node_id": "C_ai_10",
+      "commit": {
+        "author": { "name": "Claude", "email": "noreply@anthropic.com", "date": "2026-08-01T10:50:00Z" },
+        "committer": { "name": "Alice Example", "email": "alice@example.com", "date": "2026-08-01T10:55:00Z" },
+        "message": "feat: agent authored, human committed\n\nSigned-off-by: Alice Example <alice@example.com>\nSigned-off-by: Claude <noreply@anthropic.com>",
+        "tree": { "sha": "3577d226c50927a31c484d1d50ce581a3157424a", "url": "https://api.github.com/repos/example/repo/git/trees/3577d226c50927a31c484d1d50ce581a3157424a" },
+        "url": "https://api.github.com/repos/example/repo/git/commits/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "comment_count": 0,
+        "verification": { "verified": false, "reason": "unsigned", "signature": null, "payload": null, "verified_at": null }
+      },
+      "url": "https://api.github.com/repos/example/repo/commits/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "html_url": "https://github.com/example/repo/commit/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "comments_url": "https://api.github.com/repos/example/repo/commits/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/comments",
+      "author": null,
+      "committer": null,
+      "parents": [
+        { "sha": "9999999999999999999999999999999999999999", "url": "https://api.github.com/repos/example/repo/commits/9999999999999999999999999999999999999999", "html_url": "https://github.com/example/repo/commit/9999999999999999999999999999999999999999" }
+      ]
+    }
+  ]
+}

@@ -6,6 +6,7 @@ import dco_check/internal/github/response_types
 import dco_check/internal/github/types as github_types
 import dco_check/pipeline
 import dco_check/types
+import gleam/dict
 import gleam/dynamic/decode as d
 import gleam/json
 import gleam/list
@@ -64,7 +65,7 @@ pub fn signed_user_commit_passes_test() {
 
   // Third commit (index 2): signed user -> Passed
   let assert [_, _, record, ..] = records
-  assert record.disposition == types.Passed
+  let assert types.Passed(..) = record.disposition
 }
 
 pub fn bot_commit_skipped_with_default_policy_test() {
@@ -135,7 +136,7 @@ pub fn no_bots_with_alias_passes_test() {
   let #(_summary, records) = run_dco(commits, url, cfg, total)
 
   let assert [_, bot_record, ..] = records
-  assert bot_record.disposition == types.Passed
+  let assert types.Passed(..) = bot_record.disposition
 }
 
 // --- exempt-authors ---
@@ -151,6 +152,7 @@ pub fn exempt_author_exact_email_test() {
   let assert types.Exempted(
     identity: types.Identity(email: "first.committer@example.org", ..),
     match: types.ExactEmail,
+    alias: option.None,
   ) = record.disposition
   assert summary.exempted == 1
 }
@@ -168,106 +170,58 @@ pub fn exempt_author_domain_pattern_test() {
 
 // --- find_author_exemption ---
 
+fn author_record(name: String, email: String) -> types.DcoRecord {
+  types.DcoRecord(
+    sha: "abc",
+    url: "http://x",
+    subject: "test",
+    author: Some(github_types.GitUser(
+      email: Some(email),
+      name: Some(name),
+      date: Some("2024-01-01"),
+    )),
+    committer: option.None,
+    identities: [types.Identity(email:, name:)],
+    ignored_ai_signoffs: [],
+    disposition: types.Unprocessed,
+  )
+}
+
+fn exemption(
+  record: types.DcoRecord,
+  exemptions: config.Exemptions,
+  aliases: dict.Dict(String, List(String)),
+) {
+  take.with_stdout(fn() {
+    dco_check.find_author_exemption(record:, exemptions:, aliases:)
+  }).0
+}
+
 pub fn find_author_exemption_no_match_test() {
-  let record =
-    types.DcoRecord(
-      sha: "abc",
-      url: "http://x",
-      subject: "test",
-      author: Some(github_types.GitUser(
-        email: Some("alice@example.com"),
-        name: Some("Alice"),
-        date: Some("2024-01-01"),
-      )),
-      committer: option.None,
-      identities: [types.Identity(email: "alice@example.com", name: "Alice")],
-      disposition: types.Unprocessed,
-    )
+  let record = author_record("Alice", "alice@example.com")
   let exemptions = config.Exemptions(exact: ["bob@example.com"], ends_with: [])
 
-  assert take.with_stdout(fn() {
-      dco_check.find_author_exemption(record:, exemptions:)
-    }).0
-    == option.None
+  assert exemption(record, exemptions, dict.new()) == option.None
 }
 
 pub fn find_author_exemption_exact_match_test() {
-  let record =
-    types.DcoRecord(
-      sha: "abc",
-      url: "http://x",
-      subject: "test",
-      author: Some(github_types.GitUser(
-        email: Some("alice@example.com"),
-        name: Some("Alice"),
-        date: Some("2024-01-01"),
-      )),
-      committer: option.None,
-      identities: [types.Identity(email: "alice@example.com", name: "Alice")],
-      disposition: types.Unprocessed,
-    )
+  let record = author_record("Alice", "alice@example.com")
   let exemptions =
     config.Exemptions(exact: ["alice@example.com"], ends_with: [])
 
   let assert Some(#(
     types.Identity(email: "alice@example.com", ..),
     types.ExactEmail,
-  )) =
-    take.with_stdout(fn() {
-      dco_check.find_author_exemption(record:, exemptions:)
-    }).0
+    option.None,
+  )) = exemption(record, exemptions, dict.new())
 }
 
 pub fn find_author_exemption_domain_match_test() {
-  let record =
-    types.DcoRecord(
-      sha: "abc",
-      url: "http://x",
-      subject: "test",
-      author: Some(github_types.GitUser(
-        email: Some("alice@corp.dev"),
-        name: Some("Alice"),
-        date: Some("2024-01-01"),
-      )),
-      committer: option.None,
-      identities: [types.Identity(email: "alice@corp.dev", name: "Alice")],
-      disposition: types.Unprocessed,
-    )
+  let record = author_record("Alice", "alice@corp.dev")
   let exemptions = config.Exemptions(exact: [], ends_with: ["@corp.dev"])
 
-  let assert Some(#(_, types.DomainPattern("@corp.dev"))) =
-    take.with_stdout(fn() {
-      dco_check.find_author_exemption(record:, exemptions:)
-    }).0
-}
-
-// --- mask_email ---
-
-pub fn mask_email_normal_test() {
-  assert dco_check.mask_email("alice@example.com") == "al…@example.com"
-}
-
-pub fn mask_email_short_local_one_char_test() {
-  assert dco_check.mask_email("a@example.net") == "a…@example.net"
-}
-
-pub fn mask_email_short_local_two_chars_test() {
-  assert dco_check.mask_email("ab@example.net") == "ab…@example.net"
-}
-
-pub fn mask_email_long_local_test() {
-  assert dco_check.mask_email("verylongname@domain.org") == "ve…@domain.org"
-}
-
-pub fn mask_email_no_at_test() {
-  assert dco_check.mask_email("notanemail") == "…"
-}
-
-pub fn mask_email_noreply_test() {
-  assert dco_check.mask_email(
-      "49699333+dependabot[bot]@users.noreply.github.com",
-    )
-    == "49…@users.noreply.github.com"
+  let assert Some(#(_, types.DomainPattern("@corp.dev"), option.None)) =
+    exemption(record, exemptions, dict.new())
 }
 
 // --- Regression: null top-level author/committer (GitHub issue #216) ---
@@ -300,7 +254,7 @@ pub fn null_author_signed_commit_passes_test() {
 
   // First commit has a valid Signed-off-by matching the git identity.
   let assert [record, ..] = records
-  assert record.disposition == types.Passed
+  let assert types.Passed(..) = record.disposition
 }
 
 pub fn null_author_unsigned_commit_fails_test() {
@@ -334,4 +288,107 @@ pub fn malformed_author_produces_actionable_error_test() {
   // generic "Failed to decode" with no path info.
   assert string.contains(message, "expected")
   assert string.contains(message, "got")
+}
+
+pub fn find_author_exemption_ignores_email_case_test() {
+  let record =
+    types.DcoRecord(
+      sha: "abc",
+      url: "http://x",
+      subject: "test",
+      author: Some(github_types.GitUser(
+        email: Some("Alice@Corp.Dev"),
+        name: Some("Alice"),
+        date: Some("2024-01-01"),
+      )),
+      committer: option.None,
+      identities: [types.Identity(email: "Alice@Corp.Dev", name: "Alice")],
+      ignored_ai_signoffs: [],
+      disposition: types.Unprocessed,
+    )
+
+  // Exact entry and domain pattern, each written in a different case than the author.
+  let exact = config.Exemptions(exact: ["alice@corp.dev"], ends_with: [])
+  let assert Some(#(
+    types.Identity(email: "Alice@Corp.Dev", ..),
+    types.ExactEmail,
+    option.None,
+  )) = exemption(record, exact, dict.new())
+
+  let domain = config.Exemptions(exact: [], ends_with: ["@CORP.dev"])
+  let assert Some(#(_, types.DomainPattern("@CORP.dev"), option.None)) =
+    exemption(record, domain, dict.new())
+}
+
+// --- exemption through alias-signoffs.aliases ---
+
+const noreply = "123+me@users.noreply.github.com"
+
+fn aliases() -> dict.Dict(String, List(String)) {
+  dict.from_list([#(noreply, ["austin@zieglers.ca"])])
+}
+
+pub fn find_author_exemption_through_alias_test() {
+  let record = author_record("Austin", noreply)
+  let exemptions = config.Exemptions(exact: [], ends_with: ["@zieglers.ca"])
+
+  let assert Some(#(
+    types.Identity(email: "123+me@users.noreply.github.com", ..),
+    types.DomainPattern("@zieglers.ca"),
+    Some("austin@zieglers.ca"),
+  )) = exemption(record, exemptions, aliases())
+}
+
+pub fn find_author_exemption_prefers_own_address_test() {
+  let record = author_record("Austin", noreply)
+  let exemptions =
+    config.Exemptions(exact: [noreply], ends_with: ["@zieglers.ca"])
+
+  let assert Some(#(_, types.ExactEmail, option.None)) =
+    exemption(record, exemptions, aliases())
+}
+
+pub fn find_author_exemption_ignores_committer_aliases_test() {
+  // The committer's alias never exempts the author.
+  let record =
+    types.DcoRecord(
+      ..author_record("Bob", "bob@example.com"),
+      committer: Some(github_types.GitUser(
+        email: Some(noreply),
+        name: Some("Austin"),
+        date: Some("2024-01-01"),
+      )),
+    )
+  let exemptions = config.Exemptions(exact: [], ends_with: ["@zieglers.ca"])
+
+  assert exemption(record, exemptions, aliases()) == option.None
+}
+
+pub fn find_author_exemption_alias_is_one_hop_test() {
+  let record = author_record("Austin", noreply)
+  let chained =
+    dict.from_list([
+      #(noreply, ["middle@example.com"]),
+      #("middle@example.com", ["austin@zieglers.ca"]),
+    ])
+  let exemptions = config.Exemptions(exact: [], ends_with: ["@zieglers.ca"])
+
+  assert exemption(record, exemptions, chained) == option.None
+}
+
+pub fn alias_exemption_through_pipeline_test() {
+  let #(url, total, commits) = load_fixture_commits()
+  let assert Ok(cfg) =
+    config.parse(
+      "exempt-authors = [\"@zieglers.ca\"]\n[alias-signoffs.aliases]\n\"first.committer@example.org\" = [\"first@zieglers.ca\"]",
+    )
+  let #(summary, records) = run_dco(commits, url, cfg, total)
+
+  let assert Ok(record) = list.first(records)
+  let assert types.Exempted(
+    match: types.DomainPattern("@zieglers.ca"),
+    alias: Some("first@zieglers.ca"),
+    ..,
+  ) = record.disposition
+  assert summary.exempted == 1
 }

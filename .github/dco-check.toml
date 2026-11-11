@@ -1,10 +1,15 @@
 # DCO check configuration for actions-dco itself.
 #
-# This will be read by `actions-dco` 3.2 from the `KineticCafe/actions-dco` main branch
-# and applied, overriding any inline configuration.
+# This is read by `actions-dco` from the `KineticCafe/actions-dco` main branch. It is the
+# only configuration source for this repository's own check.
 
 comment = true
 
 [bots]
 policy = "well-known"
 categories = ["dependency-updaters", "ci-cd", "release"]
+
+[ai]
+signed-off-by = "reject"
+co-authored-by = "reject"
+trace-detection = "reject"

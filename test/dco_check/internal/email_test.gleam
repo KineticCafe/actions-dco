@@ -1,4 +1,5 @@
 import dco_check/internal/email
+import gleam/string
 
 // --- valid addresses ---
 
@@ -81,8 +82,48 @@ pub fn single_label_domain_test() {
   assert email.is_valid("user@localhost") == False
 }
 
-pub fn domain_label_too_short_test() {
-  assert email.is_valid("user@example.c") == False
+pub fn single_character_domain_labels_test() {
+  assert email.is_valid("user@x.io") == True
+  assert email.is_valid("user@example.c") == True
+}
+
+pub fn domain_label_too_long_test() {
+  assert email.is_valid("user@" <> string.repeat("a", 64) <> ".com") == False
+  assert email.is_valid("user@" <> string.repeat("a", 63) <> ".com") == True
+}
+
+pub fn empty_domain_label_test() {
+  assert email.is_valid("user@example..com") == False
+  assert email.is_valid("user@.example.com") == False
+}
+
+// --- the [bot] mailbox suffix ---
+
+pub fn github_bot_noreply_test() {
+  assert email.is_valid("49699333+dependabot[bot]@users.noreply.github.com")
+    == True
+}
+
+pub fn brackets_only_as_bot_suffix_test() {
+  assert email.is_valid("dependabot[bot]x@example.com") == False
+  assert email.is_valid("depend[a]bot@example.com") == False
+  assert email.is_valid("user[robot]@example.com") == False
+  assert email.is_valid("[bot]@example.com") == False
+}
+
+// --- domain patterns ---
+
+pub fn domain_pattern_test() {
+  assert email.is_domain_pattern("@example.com") == True
+  assert email.is_domain_pattern("@X.io") == True
+}
+
+pub fn invalid_domain_pattern_test() {
+  assert email.is_domain_pattern("example.com") == False
+  assert email.is_domain_pattern("@") == False
+  assert email.is_domain_pattern("@localhost") == False
+  assert email.is_domain_pattern("@user@example.com") == False
+  assert email.is_domain_pattern("@-example.com") == False
 }
 
 pub fn non_punycode_double_hyphen_test() {

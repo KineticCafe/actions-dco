@@ -1,13 +1,12 @@
-//// Well-known bot registry and AI trailer detection.
+//// Well-known bot registry.
 ////
 //// Bot categories group bots by purpose.
-////
-//// AI trailer detection is hardcoded (not user-configurable) and used to revoke bot
-//// exemptions when enabled. It is disabled by default with no documented configuration
-//// surface.
 
 import dco_check/config
+import dco_check/internal/ai_agents
+import gleam/bool
 import gleam/list
+import gleam/result
 import gleam/string
 
 /// Well-known bots grouped by category.
@@ -21,59 +20,75 @@ pub const ci_cd = ["github-actions[bot]"]
 
 pub const release = ["semantic-release[bot]", "release-please[bot]"]
 
-/// AI attribution trailer keys (lowercase, as returned by trailer parser).
-const ai_trailer_keys = ["assisted-by", "co-authored-by"]
-
-/// Patterns in trailer values that indicate AI involvement.
-const ai_patterns = ["claude", "copilot", "gpt", "gemini", "kiro", "cursor"]
-
-/// Resolve whether a bot login is exempt under the given policy.
+/// Resolve whether a bot login is exempt from sign-offs, in order:
+///
+/// 1. A login in `allow` is exempt under every policy (explicit intent, AI bots included).
+/// 2. A login in an `exclude` category is not exempt. For `AiAgents`, that is any bot login
+///    in the AI agent registry.
+/// 3. Otherwise the policy decides.
+///
+/// Comparisons are case-insensitive.
 pub fn is_bot_exempt(
   login login: String,
   policy policy: config.BotPolicy,
+  allow allow: List(String),
+  exclude exclude: List(config.BotCategory),
+  registry registry: ai_agents.Registry,
 ) -> Bool {
+  let lower = string.lowercase(login)
+  use <- bool.guard(
+    list.any(allow, fn(a) { string.lowercase(a) == lower }),
+    return: True,
+  )
+  use <- bool.guard(
+    excluded_category(login:, exclude:, registry:) != Error(Nil),
+    return: False,
+  )
+
   case policy {
     config.AllBots -> True
     config.NoBots -> False
-    config.WellKnownBots(categories) -> is_well_known(login, categories)
-    config.Allowlist(allow) ->
-      list.any(allow, fn(a) { string.lowercase(a) == string.lowercase(login) })
+    config.WellKnownBots(categories) -> in_categories(lower, categories)
   }
 }
 
-/// Check if a login belongs to any of the specified well-known categories.
-/// Empty categories list means all categories.
-fn is_well_known(login: String, categories: List(config.BotCategory)) -> Bool {
+/// The first `exclude` category the login belongs to, if any.
+pub fn excluded_category(
+  login login: String,
+  exclude exclude: List(config.BotCategory),
+  registry registry: ai_agents.Registry,
+) -> Result(config.BotCategory, Nil) {
   let lower = string.lowercase(login)
-  let cats = case categories {
-    [] -> [config.DependencyUpdaters, config.CiCd, config.Release]
-    _ -> categories
-  }
+  list.find(exclude, fn(category) {
+    case category {
+      config.AiAgents -> is_ai_agent(login:, registry:)
+      _ -> in_categories(lower, [category])
+    }
+  })
+}
 
-  list.any(cats, fn(cat) {
+/// Whether a bot login belongs to a known AI agent.
+pub fn is_ai_agent(
+  login login: String,
+  registry registry: ai_agents.Registry,
+) -> Bool {
+  result.is_ok(ai_agents.match_login(registry:, login:))
+}
+
+/// Check if a lowercase login belongs to any of the given well-known categories.
+fn in_categories(lower: String, categories: List(config.BotCategory)) -> Bool {
+  list.any(categories, fn(cat) {
     list.any(bots_for_category(cat), fn(bot) { bot == lower })
   })
 }
 
-/// Get the bot logins for a category.
+/// Get the bot logins for a category. `AiAgents` has no fixed list; it is resolved against
+/// the AI agent registry.
 pub fn bots_for_category(category: config.BotCategory) -> List(String) {
   case category {
     config.DependencyUpdaters -> dependency_updaters
     config.CiCd -> ci_cd
     config.Release -> release
+    config.AiAgents -> []
   }
-}
-
-/// Check if parsed trailers contain AI attribution.
-/// Returns True if any AI trailer with a matching AI pattern is found.
-pub fn has_ai_attribution(parsed: List(#(String, String))) -> Bool {
-  list.any(parsed, fn(trailer) {
-    let #(key, value) = trailer
-    let lower_value = string.lowercase(value)
-
-    list.contains(ai_trailer_keys, key)
-    && list.any(ai_patterns, fn(pattern) {
-      string.contains(lower_value, pattern)
-    })
-  })
 }
