@@ -2,44 +2,149 @@
 #
 # Use inline via the `config` input:
 #
-#   - uses: KineticCafe/actions-dco@v3.2.1
+#   - uses: KineticCafe/actions-dco@v4.0.0
 #     with:
 #       config: |
 #         exempt-authors = ["@example.com"]
+#
+# Or commit this file as `.github/dco-check.toml` (or `.dco-check.toml`) on the default
+# branch. Use either the reference file or the inline configuration: if both exist, the
+# run fails.
+#
+# Configuration parsing is strict; enforcement of some rules is lenient in 4.0. Parsing
+# errors will be hard failures in a future version.
 
-# Exempt authors — implied DCO sign-off.
-# Entries starting with @ are domain patterns; otherwise exact email match.
-# Applied to commit author only.
+# Exempt authors: commit authors (not committers) matching these patterns have an implied
+# DCO sign-off. Entries starting with `@` are domain patterns; otherwise they are treated
+# as email addresses for comparison. An entry that is neither is an error.
+#
+# Entries should not include `noreply` or `no-reply`.
+# ---
 exempt-authors = ["joe@example.net", "@example.com"]
 
-# Enable PR comment with results.
-# Requires pull-requests: write permission on the token.
-# Default: false
-comment = false
+# Enable PR comment with results. Defaults off and requires `pull-requests: write`
+# permission on the token.
+# ---
+comment = true
 
 [bots]
-# Bot exemption policy.
-#   "all"        — all type: "Bot" commits are exempt (v2 default)
-#   "none"       — no bots are exempt; all require valid sign-offs
-#   "well-known" — only recognized bots are exempt, by category
-#   "allowlist"  — only explicitly listed bot logins are exempt
+# Describes the bot accounts exempt from requiring a sign-off.
+#
+#   "well-known"  only recognized bots are exempt, by category (default)
+#   "all"         all type: "Bot" commits are exempt (default before 4.0)
+#   "none"        no bots are exempt; all require valid sign-offs
+#
+# Unsupported values report a warning and behave as "none", including previously supported
+# values.
+# ---
 policy = "well-known"
 
-# Categories for policy = "well-known".
-# If omitted, all categories are enabled.
-# Options: "dependency-updaters", "ci-cd", "release"
+# Categories of bots that can be exempted under policy = "well-known". If omitted, all
+# categories apply. An empty list is an error.
+#
+# Supported categories are: "ci-cd", "dependency-updaters", and "release". Unknown
+# category names are ignored with a warning.
+#
+# NOTE: The "ai" category is only valid in `exclude-categories`.
+# ---
 categories = ["dependency-updaters", "ci-cd", "release"]
 
-# Explicit bot logins for policy = "allowlist".
-# allow = ["dependabot[bot]", "renovate[bot]"]
+# Categories of bots that are never exempted, even under policy = "all". Defaults to no
+# exclusions.
+#
+# Supported categories are: "ai", "ci-cd", "dependency-updaters", and "release".
+# ---
+# exclude-categories = ["ai"]
+
+# Bot logins that are always exempt, under every policy.
+#
+# These are GitHub login names, not email addresses.
+#
+# The presence of a bot login here overrides `exclude-categories`.
+# ---
+# allow = ["copilot[bot]"]
+
+# AI agents cannot certify the DCO. Known agents are recognized by the email address in
+# a trailer or by bot login.
+[ai]
+# The action to take when a `signed-off-by` email matches that of a known AI agent. This
+# is strictly disallowed according to the DCO, because only humans can sign-off.
+#
+#   "reject"          the commit fails (default)
+#   "require-human"   allow the commit to pass with a warning if and only if the commit
+#                     has a `signed-off-by` trailer matching the commit's author or
+#                     committer
+#
+# Known AI agents are defined in the built-in registry and `ai.extra-agent-emails`. This
+# check does not read `ai.ignore-agents`.
+# ---
+signed-off-by = "reject"
+
+# The action to take when a `co-authored-by` email matches that of a known AI agent.
+#
+#   "ignore"    do nothing (bypass this check, default)
+#   "warn"      a warning is displayed but the commit is not failed
+#   "reject"    the commit fails
+#
+# When a match is found under "warn" or "reject", a recommendation to use the
+# `Assisted-by` trailer instead of `Co-authored-by` is printed.
+#
+#   Assisted-by: <agent harness> [model] [tool…]
+#
+# Known AI agents are defined in the built-in registry and `ai.extra-agent-emails`.
+# Built-in agents listed in `ai.ignore-agents` are ignored by this check.
+# ---
+co-authored-by = "reject"
+
+# The action to take when a commit's author or committer email matches that of a known AI
+# agent and the commit has no `Assisted-by` trailer.
+#
+#   "ignore"    do nothing (bypass this check, default)
+#   "warn"      a warning is displayed but the commit is not failed
+#   "reject"    the commit fails
+#
+# When a match is found under "warn" or "reject", a recommendation to add `Assisted-by`
+# is printed.
+#
+#   Assisted-by: <agent harness> [model] [tool…]
+#
+# Known AI agents are defined in the built-in registry and `ai.extra-agent-emails`.
+# Built-in agents listed in `ai.ignore-agents` are ignored by this check.
+# ---
+trace-detection = "reject"
+
+# Additional email addresses to treat as AI agents in addition to those in the built-in
+# list. Used in `ai.signed-off-by`, `ai.co-authored-by`, and `ai.trace-detection`. Each
+# entry must be an email address.
+#
+# The emails provided here are masked in output.
+# ---
+# extra-agent-emails = ["agent@example.com"]
+
+# Built-in agents in this list are ignored for co-authored-by and trace-detection. This
+# list should contain the documented agent keys, but will resolve against any agent email
+# address or GitHub bot login identity.
+#
+# Unknown agents are an error.
+# ---
+# # All three of these resolve to the same agent.
+# ignore-agents = [
+#   "github-copilot",
+#   "copilot-swe-agent[bot]",
+#   "167198135+copilot[bot]@users.noreply.github.com"
+# ]
 
 [alias-signoffs.aliases]
-# Map a commit identity email to accepted sign-off emails.
+# Map a commit identity email to accepted sign-off emails or exempt an author from
+# requiring a sign-off if the resulting sign-off is in exempt-authors.
 #
-# Keyed by commit identity (not sign-off email) for safety: this scopes the
-# alias to a specific committer, preventing a sign-off email from being
-# granted blanket acceptance across unrelated commits.
+# The map key is the commit's author or committer email address mapped to one or more
+# email addresses typically used for sign-off. The use case for this is someone who
+# occasionally uses the GitHub web interface to commit a change where they write the
+# `Signed-off-by` trailer using their usual email address.
 #
-# Example: dependabot commits as 49699333+dependabot[bot]@users.noreply.github.com
-# but signs off as support@github.com.
-"49699333+dependabot[bot]@users.noreply.github.com" = ["support@github.com"]
+# For exemptions, only the commit author's aliases are used, and only one hop: an alias
+# address is not itself looked up as an alias. Keys and addresses must be email addresses.
+# ---
+# "123+me@users.noreply.github.com" = ["me@example.com"]
+# "49699333+dependabot[bot]@users.noreply.github.com" = ["support@github.com"]
