@@ -125,8 +125,22 @@ def build_subset(spec, kept_paths, refs, strip: [])
   end
 
   strip_keys!(subset, strip) unless strip.empty?
+  apply_spec_fixes!(subset)
 
   subset
+end
+
+# https://github.com/github/rest-api-description/issues/1945
+SPEC_NULL_FIXES = {
+  %w[components schemas diff-entry properties blob_url],
+  %w[components schemas diff-entry properties raw_url]
+}.freeze
+
+def apply_spec_fixes!(subset)
+  SPEC_NULL_FIXES.each do |path|
+    schema = subset.dig(*path) or next
+    schema["nullable"] = true
+  end
 end
 
 # Recursively remove keys from all hashes in the structure.
