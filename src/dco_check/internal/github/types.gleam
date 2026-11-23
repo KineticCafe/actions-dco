@@ -539,14 +539,14 @@ pub type ContentTree {
 pub type DiffEntry {
   DiffEntry(
     additions: Int,
-    blob_url: String,
+    blob_url: Option(String),
     changes: Int,
     contents_url: String,
     deletions: Int,
     filename: String,
     patch: Option(String),
     previous_filename: Option(String),
-    raw_url: String,
+    raw_url: Option(String),
     sha: Option(String),
     status: DiffEntryStatus,
   )

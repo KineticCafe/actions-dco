@@ -2565,7 +2565,7 @@ pub fn decode_content_tree_list(
 /// Diff Entry
 pub fn diff_entry_decoder() -> decode.Decoder(types.DiffEntry) {
   use additions <- decode.field("additions", decode.int)
-  use blob_url <- decode.field("blob_url", decode.string)
+  use blob_url <- decode.field("blob_url", decode.optional(decode.string))
   use changes <- decode.field("changes", decode.int)
   use contents_url <- decode.field("contents_url", decode.string)
   use deletions <- decode.field("deletions", decode.int)
@@ -2580,7 +2580,7 @@ pub fn diff_entry_decoder() -> decode.Decoder(types.DiffEntry) {
     option.None,
     decode.optional(decode.string),
   )
-  use raw_url <- decode.field("raw_url", decode.string)
+  use raw_url <- decode.field("raw_url", decode.optional(decode.string))
   use sha <- decode.field("sha", decode.optional(decode.string))
   use status <- decode.field("status", diff_entry_status_decoder())
   decode.success(types.DiffEntry(

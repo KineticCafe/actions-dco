@@ -1562,7 +1562,7 @@ pub fn encode_diff_entry_json(value: types.DiffEntry) -> json.Json {
   json.object(
     list.flatten([
       [#("additions", json.int(value.additions))],
-      [#("blob_url", json.string(value.blob_url))],
+      [#("blob_url", json.nullable(value.blob_url, json.string))],
       [#("changes", json.int(value.changes))],
       [#("contents_url", json.string(value.contents_url))],
       [#("deletions", json.int(value.deletions))],
@@ -1575,7 +1575,7 @@ pub fn encode_diff_entry_json(value: types.DiffEntry) -> json.Json {
         option.None -> []
         option.Some(x) -> [#("previous_filename", json.string(x))]
       },
-      [#("raw_url", json.string(value.raw_url))],
+      [#("raw_url", json.nullable(value.raw_url, json.string))],
       [#("sha", json.nullable(value.sha, json.string))],
       [#("status", encode_diff_entry_status_json(value.status))],
     ]),

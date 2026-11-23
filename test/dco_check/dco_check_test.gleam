@@ -242,6 +242,29 @@ fn load_null_author_fixture() {
   result
 }
 
+// --- Regression: null blob_url/raw_url on submodule diff entries ---
+// Updating a submodule pointer returns null on "blob_url" and "raw_url"
+// for that file entry, although the API schema marks them as required
+// and only "string" as being allowed.
+// This schema bug has been reported back in 2022 and is still not fixed...
+// See https://github.com/github/rest-api-description/issues/1945
+
+pub fn submodule_diff_file_entry_comparison_test() {
+  let assert Ok(json) =
+    simplifile.read("test/fixtures/submodule_diff_file_entry_comparison.json")
+  let response = response_types.ReposCompareCommitsResponseOk(json)
+
+  let assert #(Ok(#(summary, records)), _stdout) =
+    take.with_stdout(fn() {
+      pipeline.process_response(response:, config: config.default())
+    })
+
+  let assert [record] = records
+  let assert types.Passed(..) = record.disposition
+  assert summary.passed == 1
+  assert summary.failed == 0
+}
+
 pub fn null_author_commits_decode_test() {
   // The fixture must decode without error — this was the original crash.
   let #(_url, _total, commits) = load_null_author_fixture()
