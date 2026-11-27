@@ -1,5 +1,11 @@
 # KineticCafe/actions-dco Changelog
 
+## 4.0.1 / 2026-11-27
+
+- [@sinuscosinustan][@sinuscosinustan] provided a workaround for
+  [github/rest-api-description#1945][grad-1945] affecting pull request
+  properties. [#224][pull-224]
+
 ## 4.0.0 / 2026-11-16
 
 This release has breaking changes. See
@@ -279,3 +285,6 @@ Pinning to the specific tag reference is strongly recommended.
 [issue-198]: https://github.com/KineticCafe/actions-dco/issues/198
 [issue-216]: https://github.com/KineticCafe/actions-dco/issues/216
 [pull-222]: https://github.com/KineticCafe/actions-dco/pull/222
+[pull-224]: https://github.com/KineticCafe/actions-dco/pull/224
+[@sinuscosinustan]: https://github.com/@sinuscosinustan
+[grad-1945]: https://github.com/github/rest-api-description/issues/1945
