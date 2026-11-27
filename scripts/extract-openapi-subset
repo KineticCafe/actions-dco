@@ -131,10 +131,10 @@ def build_subset(spec, kept_paths, refs, strip: [])
 end
 
 # https://github.com/github/rest-api-description/issues/1945
-SPEC_NULL_FIXES = {
+SPEC_NULL_FIXES = [
   %w[components schemas diff-entry properties blob_url],
   %w[components schemas diff-entry properties raw_url]
-}.freeze
+].freeze
 
 def apply_spec_fixes!(subset)
   SPEC_NULL_FIXES.each do |path|

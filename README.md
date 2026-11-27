@@ -22,7 +22,7 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
-      - uses: KineticCafe/actions-dco@v4.0.0
+      - uses: KineticCafe/actions-dco@v4.0.1
 ```
 
 ## Versioning
@@ -55,7 +55,7 @@ Parsing errors will be hard failures in a future version.
 ### Minimal example
 
 ```yaml
-- uses: KineticCafe/actions-dco@v4.0.0
+- uses: KineticCafe/actions-dco@v4.0.1
   with:
     config: |
       exempt-authors = ["joe@example.net", "@example.com"]
@@ -165,7 +165,7 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
-      - uses: KineticCafe/actions-dco@v4.0.0
+      - uses: KineticCafe/actions-dco@v4.0.1
         with:
           config: |
             comment = true
@@ -486,7 +486,7 @@ permissions:
   pull-requests: write
 
 steps:
-  - uses: KineticCafe/actions-dco@v4.0.0
+  - uses: KineticCafe/actions-dco@v4.0.1
     with:
       config: |
         comment = true
